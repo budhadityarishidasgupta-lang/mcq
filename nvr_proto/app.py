@@ -83,6 +83,26 @@ elif question["type"] == "hidden_shape":
 
 
 # =========================================================
+# MATRIX / COMPLETE THE SQUARE
+# =========================================================
+elif question["type"] == "matrix":
+    st.subheader("Which option completes the square?")
+
+    st.image("matrix.svg")
+
+    st.markdown("**Options**")
+    letters = ["a", "b", "c", "d"]
+    cols = st.columns(4)
+
+    for i, col in enumerate(cols):
+        with col:
+            st.image(f"opt_{letters[i]}.svg")
+            if st.button(f"Option {letters[i].upper()}", key=f"opt_{i}"):
+                st.session_state.selected = i
+
+
+
+# =========================================================
 # FEEDBACK
 # =========================================================
 if "selected" in st.session_state:
