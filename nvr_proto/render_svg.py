@@ -86,14 +86,27 @@ def draw_structure_svg(structure, filename):
 
 
 def render_question(question):
-    # If sequence, draw stem
+
     if question["type"] == "sequence":
         save_svg("stem.svg", question["sequence"][-1])
+        letters = ["a", "b", "c", "d"]
+        for i, rot in enumerate(question["options"]):
+            save_svg(f"opt_{letters[i]}.svg", rot)
 
-    # Draw options
-    letters = ["a", "b", "c", "d"]
-    for i, rot in enumerate(question["options"]):
-        save_svg(f"opt_{letters[i]}.svg", rot)
+    elif question["type"] == "odd_one_out":
+        letters = ["a", "b", "c", "d"]
+        for i, rot in enumerate(question["options"]):
+            save_svg(f"opt_{letters[i]}.svg", rot)
+
+    elif question["type"] == "structure_match":
+        # Draw example structures (left side)
+        for i, example in enumerate(question["examples"]):
+            draw_structure_svg(example, f"example_{i}.svg")
+
+        # Draw options
+        letters = ["a", "b", "c", "d"]
+        for i, option in enumerate(question["options"]):
+            draw_structure_svg(option, f"opt_{letters[i]}.svg")
 
 
 def main():
