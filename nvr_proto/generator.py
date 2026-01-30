@@ -42,3 +42,68 @@ def generate_question():
         generate_sequence_question(),
         generate_odd_one_out_question()
     ])
+
+def generate_structure_match_question():
+    """
+    Structure Match:
+    Circle -> Square -> Circle
+    """
+
+    structure = {
+        "nodes": [
+            {"id": 1, "type": "circle"},
+            {"id": 2, "type": "square"},
+            {"id": 3, "type": "circle"},
+        ],
+        "edges": [
+            (1, 2),
+            (2, 3),
+        ]
+    }
+
+    # Correct option follows same structure
+    correct_structure = structure
+
+    # Wrong options (break one rule each)
+    wrong_structures = [
+        # wrong middle
+        {
+            "nodes": [
+                {"id": 1, "type": "circle"},
+                {"id": 2, "type": "circle"},
+                {"id": 3, "type": "square"},
+            ],
+            "edges": [(1, 2), (2, 3)]
+        },
+        # missing node
+        {
+            "nodes": [
+                {"id": 1, "type": "circle"},
+                {"id": 2, "type": "square"},
+            ],
+            "edges": [(1, 2)]
+        },
+        # extra node
+        {
+            "nodes": [
+                {"id": 1, "type": "circle"},
+                {"id": 2, "type": "square"},
+                {"id": 3, "type": "circle"},
+                {"id": 4, "type": "triangle"},
+            ],
+            "edges": [(1, 2), (2, 3), (3, 4)]
+        }
+    ]
+
+    options = [correct_structure] + wrong_structures
+    random.shuffle(options)
+
+    correct_index = options.index(correct_structure)
+
+    return {
+        "type": "structure_match",
+        "examples": [structure, structure, structure],
+        "options": options,
+        "correct_index": correct_index
+    }
+
