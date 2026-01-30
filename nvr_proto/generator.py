@@ -163,3 +163,28 @@ def generate_hidden_shape_question():
         "options": options,
         "correct_index": correct_index
     }
+def generate_matrix_question():
+    """
+    Matrix / Complete the square
+    Rule: rotate triangle by 90 degrees across the row
+    """
+
+    # Matrix values (rotations)
+    matrix = [
+        [0, 90, None],
+        [0, 90, 180],
+        [0, 90, 180],
+    ]
+
+    correct_value = 180
+
+    # Options (rotations)
+    options = [180, 0, 90, 270]
+    correct_index = options.index(correct_value)
+
+    return {
+        "type": "matrix",
+        "matrix": matrix,
+        "options": options,
+        "correct_index": correct_index
+    }
