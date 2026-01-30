@@ -62,6 +62,27 @@ elif question["type"] == "odd_one_out":
                 st.session_state.selected = i
 
 # =========================================================
+# HIDDEN SHAPE
+# =========================================================
+elif question["type"] == "hidden_shape":
+    st.subheader("In which option is the shape on the left hidden?")
+
+    left, right = st.columns([1, 2])
+
+    with left:
+        st.markdown("**Target shape**")
+        st.image("target.svg")
+
+    with right:
+        st.markdown("**Options**")
+        letters = ["a", "b", "c", "d"]
+        for i in range(4):
+            st.image(f"opt_{letters[i]}.svg")
+            if st.button(f"Option {letters[i].upper()}", key=f"opt_{i}"):
+                st.session_state.selected = i
+
+
+# =========================================================
 # FEEDBACK
 # =========================================================
 if "selected" in st.session_state:
