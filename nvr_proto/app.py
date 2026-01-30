@@ -1,20 +1,22 @@
 import streamlit as st
 from render_svg import main
-from generator import generate_sequence_question
 
 st.set_page_config(page_title="NVR Prototype", layout="centered")
 st.title("🧠 NVR Prototype – Auto Generated Question")
 
 # --- SESSION STATE ---
 if "question" not in st.session_state:
-    st.session_state.question = generate_sequence_question()
-    main()
+    st.session_state.question = main()
 
 question = st.session_state.question
 
-# --- QUESTION ---
-st.subheader("Question")
-st.image("stem.svg")
+# --- QUESTION TEXT ---
+if question["type"] == "sequence":
+    st.subheader("Which option comes next?")
+    st.image("stem.svg")
+
+elif question["type"] == "odd_one_out":
+    st.subheader("Which option is different?")
 
 # --- OPTIONS ---
 st.subheader("Options")
@@ -41,6 +43,5 @@ if selected is not None:
 st.markdown("---")
 
 if st.button("Next Question ▶️"):
-    st.session_state.question = generate_sequence_question()
-    main()
+    st.session_state.question = main()
     st.experimental_rerun()
