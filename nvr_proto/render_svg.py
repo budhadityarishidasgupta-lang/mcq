@@ -128,7 +128,14 @@ def render_question(question):
         letters = ["a", "b", "c", "d"]
         for i, option in enumerate(question["options"]):
             draw_structure_svg(option, f"opt_{letters[i]}.svg")
+    elif question["type"] == "hidden_shape":
+        # Draw target shape
+        draw_line_shape(question["target"], "target.svg")
 
+        # Draw options
+        letters = ["a", "b", "c", "d"]
+        for i, option in enumerate(question["options"]):
+            draw_line_shape(option["lines"], f"opt_{letters[i]}.svg")
 
 def main():
     question = generate_question()
