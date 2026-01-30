@@ -110,6 +110,8 @@ if "selected" in st.session_state:
         st.success("✅ Correct!")
     else:
         st.error("❌ Not quite. Try again.")
+    st.markdown("**Why?**")
+    st.info(question["explanation"])
 
 # =========================================================
 # NEXT QUESTION

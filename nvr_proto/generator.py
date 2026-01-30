@@ -12,7 +12,8 @@ def generate_sequence_question():
         "shape": "triangle",
         "sequence": sequence,
         "options": options,
-        "correct_index": correct_index
+        "correct_index": correct_index,
+        "explanation": "The triangle rotates by 90° each time. The next shape must follow the same rotation."
     }
 
 
@@ -30,7 +31,8 @@ def generate_odd_one_out_question():
         "type": "odd_one_out",
         "shape": "triangle",
         "options": options,
-        "correct_index": correct_index
+        "correct_index": correct_index,
+        "explanation": "Three triangles point up, but one points down. The odd one out is the one facing the opposite way."
     }
 
 
@@ -105,7 +107,8 @@ def generate_structure_match_question():
         "type": "structure_match",
         "examples": [structure, structure, structure],
         "options": options,
-        "correct_index": correct_index
+        "correct_index": correct_index,
+        "explanation": "The correct option keeps the same structure: a square connected between two circles."
     }
 
 def generate_hidden_shape_question():
@@ -162,7 +165,8 @@ def generate_hidden_shape_question():
         "type": "hidden_shape",
         "target": target_shape,
         "options": options,
-        "correct_index": correct_index
+        "correct_index": correct_index,
+        "explanation": "The correct option contains all the lines of the target L-shape in the same arrangement."
     }
 def generate_matrix_question():
     """
@@ -187,5 +191,6 @@ def generate_matrix_question():
         "type": "matrix",
         "matrix": matrix,
         "options": options,
-        "correct_index": correct_index
+        "correct_index": correct_index,
+        "explanation": "Across each row, the triangle rotates by 90°. The missing square must follow the same rotation."
     }
