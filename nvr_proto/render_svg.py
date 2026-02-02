@@ -202,7 +202,11 @@ def main():
 
 def _svg_wrap(inner: str, w: int = 760, h: int = 260) -> str:
     return f"""
-    <svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}" viewBox="0 0 {w} {h}">
+    <svg xmlns="http://www.w3.org/2000/svg"
+         viewBox="0 0 {w} {h}"
+         width="100%"
+         height="auto"
+         preserveAspectRatio="xMidYMid meet">
       <rect x="0" y="0" width="{w}" height="{h}" rx="16" fill="#0f1117"/>
       {inner}
     </svg>
@@ -288,36 +292,62 @@ def _render_odd_one_out(prompt: dict, options: list) -> str:
 
 
 def _render_matrix(prompt: dict, options: list) -> str:
-    # prompt: {"shape": "...", "matrix": [[0,90,None],[0,90,180],[0,90,180]]}
+    """
+    Responsive 3x3 matrix renderer.
+    """
     m = prompt.get("matrix", [])
-    inner = '<text x="24" y="36" fill="#e6edf3" font-size="18" font-family="Inter,Arial">Matrix</text>'
 
-    # draw 3x3 grid of triangles (None = ? box)
-    start_x, start_y = 90, 70
-    cell = 70
-    for r in range(min(3, len(m))):
-        row = m[r]
-        for c in range(min(3, len(row))):
-            v = row[c]
-            x = start_x + c * cell
-            y = start_y + r * cell
+    inner = """
+    <text x="50%" y="28" fill="#e6edf3" font-size="18"
+          font-family="Inter,Arial" text-anchor="middle">
+        Matrix
+    </text>
+    """
+
+    # Matrix layout (centered)
+    grid_size = 3
+    cell = 64
+    gap = 14
+    total = grid_size * cell + (grid_size - 1) * gap
+
+    cx = 380        # SVG center
+    cy = 120        # Matrix vertical center
+
+    start_x = cx - total // 2
+    start_y = cy - total // 2
+
+    for r in range(len(m)):
+        for c in range(len(m[r])):
+            v = m[r][c]
+            x = start_x + c * (cell + gap)
+            y = start_y + r * (cell + gap)
+
             if v is None:
-                inner += (
-                    f'<rect x="{x - 28}" y="{y - 28}" width="56" height="56" '
-                    'rx="10" fill="#0f1117" stroke="#2f3640"/>'
-                )
-                inner += f'<text x="{x - 6}" y="{y + 6}" fill="#9aa4b2" font-size="18" font-family="Inter,Arial">?</text>'
+                inner += f'''
+                <rect x="{x}" y="{y}" width="{cell}" height="{cell}"
+                      rx="10" fill="#0f1117" stroke="#2f3640"/>
+                <text x="{x + cell/2}" y="{y + cell/2 + 6}"
+                      fill="#9aa4b2" font-size="22"
+                      font-family="Inter,Arial" text-anchor="middle">?</text>
+                '''
             else:
-                inner += _triangle(x, y, size=20, rot=int(v))
+                inner += _triangle(
+                    x + cell // 2,
+                    y + cell // 2,
+                    size=20,
+                    rot=int(v)
+                )
 
-    inner += _render_option_tiles(options, y=130)
-    return _svg_wrap(inner, w=760, h=260)
+    # Options row (responsive)
+    inner += _render_option_tiles(options, y=220)
+
+    return _svg_wrap(inner, w=760, h=340)
 
 
 def _render_option_tiles(options: list, y: int = 130) -> str:
     # render 4 option tiles as rotations (0/90/180/270)
     labels = ["A", "B", "C", "D"]
-    tile_w, tile_h = 160, 110
+    tile_w, tile_h = 150, 100
     gap = 20
     x0 = 24
     out = ""
