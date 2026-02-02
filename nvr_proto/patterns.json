@@ -2,6 +2,9 @@
   {
     "pattern_id": "NVR_SEQ_ROT_90",
     "question_type": "SEQUENCE",
+    "family": "ROTATION",
+    "level": 1,
+    "weight": 1,
     "shape": "triangle",
     "transformations": [
       { "type": "rotation", "step": 90 }
@@ -14,6 +17,9 @@
   {
     "pattern_id": "NVR_ODD_ROT",
     "question_type": "ODD_ONE_OUT",
+    "family": "ROTATION",
+    "level": 1,
+    "weight": 1,
     "shape": "triangle",
     "common_value": 0,
     "odd_value": 180,
@@ -22,6 +28,9 @@
   {
     "pattern_id": "NVR_MATRIX_ROT",
     "question_type": "MATRIX",
+    "family": "MATRIX",
+    "level": 2,
+    "weight": 1,
     "shape": "triangle",
     "rule": { "type": "rotation", "step": 90 },
     "matrix_template": [
