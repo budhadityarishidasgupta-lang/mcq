@@ -1,6 +1,6 @@
 import math
 import svgwrite
-from generator import generate_question
+from nvr_proto.generator import generate_question
 
 
 def draw_triangle(dwg, cx, cy, size, rotation):
