@@ -25,3 +25,32 @@ if "current_question" not in st.session_state:
 question = st.session_state.current_question
 svg = render_question_svg(question)
 components.html(svg, height=280)
+
+if "selected_option" not in st.session_state:
+    st.session_state.selected_option = None
+
+if "last_result" not in st.session_state:
+    st.session_state.last_result = None
+
+cols = st.columns(4)
+for i, opt in enumerate(["A", "B", "C", "D"]):
+    if cols[i].button(opt):
+        st.session_state.selected_option = opt
+
+if st.session_state.selected_option and st.session_state.last_result is None:
+    if st.button("Submit"):
+        st.session_state.last_result = (
+            st.session_state.selected_option == question["correct"]
+        )
+
+if st.session_state.last_result is not None:
+    if st.session_state.last_result:
+        st.success("Correct!")
+    else:
+        st.error("Incorrect")
+
+    if st.button("Next Question"):
+        del st.session_state.current_question
+        del st.session_state.selected_option
+        del st.session_state.last_result
+        st.rerun()
