@@ -1,8 +1,8 @@
 import streamlit as st
 import streamlit.components.v1 as components
 
-from nvr_proto.generator import generate_question
-from nvr_proto.render_svg import render_question_svg
+from .generator import generate_question
+from .render_svg import render_question_svg
 
 st.set_page_config(page_title="NVR Prototype", layout="centered")
 st.title("🧠 NVR Prototype – Auto Generated Question")
