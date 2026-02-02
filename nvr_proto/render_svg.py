@@ -198,4 +198,149 @@ def render_question(question):
 def main():
     question = generate_question()
     render_question(question)
+
+
+def _svg_wrap(inner: str, w: int = 760, h: int = 260) -> str:
+    return f"""
+    <svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}" viewBox="0 0 {w} {h}">
+      <rect x="0" y="0" width="{w}" height="{h}" rx="16" fill="#0f1117"/>
+      {inner}
+    </svg>
+    """
+
+
+def _triangle(cx: int, cy: int, size: int = 40, rot: int = 0, fill: str = "#e6edf3") -> str:
+    # triangle pointing up at rot=0
+    pts = [
+        (cx, cy - size),
+        (cx - size, cy + size),
+        (cx + size, cy + size),
+    ]
+    # rotate points around center
+    ang = math.radians(rot)
+
+    def rotp(x, y):
+        dx, dy = x - cx, y - cy
+        rx = dx * math.cos(ang) - dy * math.sin(ang)
+        ry = dx * math.sin(ang) + dy * math.cos(ang)
+        return (cx + rx, cy + ry)
+
+    pts2 = [rotp(x, y) for x, y in pts]
+    pts_str = " ".join([f"{x:.1f},{y:.1f}" for x, y in pts2])
+    return f'<polygon points="{pts_str}" fill="{fill}" />'
+
+
+def _tile(x: int, y: int, w: int, h: int, inner: str) -> str:
+    return f"""
+    <g>
+      <rect x="{x}" y="{y}" width="{w}" height="{h}" rx="14" fill="#161b22" stroke="#2f3640"/>
+      {inner}
+    </g>
+    """
+
+
+def render_question_svg(question: dict) -> str:
+    """
+    Universal SVG renderer for schema-driven questions.
+    Returns a single SVG string containing prompt + option tiles.
+    """
+    qtype = question.get("question_type")
+    prompt = question.get("prompt", {})
+    options = question.get("options", [])
+
+    if qtype == "SEQUENCE":
+        return _render_sequence(prompt, options)
+
+    if qtype == "ODD_ONE_OUT":
+        return _render_odd_one_out(prompt, options)
+
+    if qtype == "MATRIX":
+        return _render_matrix(prompt, options)
+
+    # Fallback: show options as simple labels
+    return _render_fallback(prompt, options, title=qtype or "QUESTION")
+
+
+def _render_sequence(prompt: dict, options: list) -> str:
+    # prompt: {"shape": "...", "sequence": [0,90,180]}
+    seq = prompt.get("sequence", [])
+    inner = '<text x="24" y="36" fill="#e6edf3" font-size="18" font-family="Inter,Arial">Sequence</text>'
+
+    # draw sequence row
+    x0 = 70
+    for i, rot in enumerate(seq):
+        inner += _triangle(x0 + i * 90, 90, size=22, rot=int(rot))
+    inner += '<text x="340" y="96" fill="#9aa4b2" font-size="22" font-family="Inter,Arial">→</text>'
+    inner += '<text x="370" y="96" fill="#9aa4b2" font-size="16" font-family="Inter,Arial">?</text>'
+
+    # options tiles (A-D)
+    inner += _render_option_tiles(options, y=130)
+    return _svg_wrap(inner, w=760, h=260)
+
+
+def _render_odd_one_out(prompt: dict, options: list) -> str:
+    inner = '<text x="24" y="36" fill="#e6edf3" font-size="18" font-family="Inter,Arial">Odd one out</text>'
+    # prompt stem: show 4 shapes (same as options conceptually)
+    for i, rot in enumerate(options[:4]):
+        inner += _triangle(90 + i * 120, 90, size=24, rot=int(rot))
+    inner += _render_option_tiles(options, y=130)
+    return _svg_wrap(inner, w=760, h=260)
+
+
+def _render_matrix(prompt: dict, options: list) -> str:
+    # prompt: {"shape": "...", "matrix": [[0,90,None],[0,90,180],[0,90,180]]}
+    m = prompt.get("matrix", [])
+    inner = '<text x="24" y="36" fill="#e6edf3" font-size="18" font-family="Inter,Arial">Matrix</text>'
+
+    # draw 3x3 grid of triangles (None = ? box)
+    start_x, start_y = 90, 70
+    cell = 70
+    for r in range(min(3, len(m))):
+        row = m[r]
+        for c in range(min(3, len(row))):
+            v = row[c]
+            x = start_x + c * cell
+            y = start_y + r * cell
+            if v is None:
+                inner += (
+                    f'<rect x="{x - 28}" y="{y - 28}" width="56" height="56" '
+                    'rx="10" fill="#0f1117" stroke="#2f3640"/>'
+                )
+                inner += f'<text x="{x - 6}" y="{y + 6}" fill="#9aa4b2" font-size="18" font-family="Inter,Arial">?</text>'
+            else:
+                inner += _triangle(x, y, size=20, rot=int(v))
+
+    inner += _render_option_tiles(options, y=130)
+    return _svg_wrap(inner, w=760, h=260)
+
+
+def _render_option_tiles(options: list, y: int = 130) -> str:
+    # render 4 option tiles as rotations (0/90/180/270)
+    labels = ["A", "B", "C", "D"]
+    tile_w, tile_h = 160, 110
+    gap = 20
+    x0 = 24
+    out = ""
+    for i in range(min(4, len(options))):
+        x = x0 + i * (tile_w + gap)
+        rot = options[i]
+        inner = (
+            f'<text x="{x + 14}" y="{y + 26}" fill="#9aa4b2" font-size="14" '
+            f'font-family="Inter,Arial">{labels[i]}</text>'
+        )
+        inner += _triangle(x + tile_w // 2, y + 62, size=22, rot=int(rot))
+        out += _tile(x, y, tile_w, tile_h, inner)
+    return out
+
+
+def _render_fallback(prompt: dict, options: list, title: str = "QUESTION") -> str:
+    inner = (
+        f'<text x="24" y="36" fill="#e6edf3" font-size="18" font-family="Inter,Arial">{title}</text>'
+    )
+    inner += (
+        '<text x="24" y="64" fill="#9aa4b2" font-size="14" '
+        'font-family="Inter,Arial">Renderer not implemented for this type yet.</text>'
+    )
+    inner += _render_option_tiles(options, y=130)
+    return _svg_wrap(inner, w=760, h=260)
     return question
