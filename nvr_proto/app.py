@@ -1,8 +1,7 @@
 import random
 
 import streamlit as st
-import streamlit.components.v1 as components
-
+from nvr_proto.components.svg_options import svg_options
 from nvr_proto.db import init_nvr_tables
 from nvr_proto.generator import generate_from_pattern, load_patterns
 from nvr_proto.render_svg import render_question_svg
@@ -99,65 +98,6 @@ if "last_result" not in st.session_state:
     st.session_state.last_result = None
 
 svg = render_question_svg(question, selected_option=st.session_state.selected_option)
-svg_component = f"""
-<div id="svg-container" style="width: 100%;">
-  {svg}
-</div>
-<style>
-  #svg-container svg {{
-    width: 100%;
-    height: auto;
-  }}
-  #svg-container .option-card {{
-    cursor: pointer;
-  }}
-  #svg-container .option-card rect {{
-    transition: stroke 0.15s ease, fill 0.15s ease;
-  }}
-  #svg-container .option-card.selected rect {{
-    stroke: #58a6ff;
-    stroke-width: 4;
-    fill: #1f2937;
-  }}
-</style>
-<script>
-  const streamlit = window.parent.Streamlit;
-  const root = document.getElementById("svg-container");
-  const optionLetters = ["A", "B", "C", "D"];
-
-  const clearSelection = () => {{
-    root.querySelectorAll(".option-card").forEach((node) => {{
-      node.classList.remove("selected");
-    }});
-  }};
-
-  const setSelection = (letter) => {{
-    clearSelection();
-    const selected = root.querySelector(`#option-${{letter}}`);
-    if (selected) {{
-      selected.classList.add("selected");
-    }}
-  }};
-
-  optionLetters.forEach((letter) => {{
-    const el = root.querySelector(`#option-${{letter}}`);
-    if (!el) {{
-      return;
-    }}
-    el.addEventListener("click", () => {{
-      setSelection(letter);
-      if (streamlit) {{
-        streamlit.setComponentValue(letter);
-      }}
-    }});
-  }});
-
-  if (streamlit) {{
-    streamlit.setComponentReady();
-    streamlit.setFrameHeight(420);
-  }}
-</script>
-"""
 
 with st.container():
     _, center_col, _ = st.columns([1, 3, 1])
@@ -168,7 +108,7 @@ with st.container():
                 f"<div class='prompt-text'>{question['prompt']}</div>",
                 unsafe_allow_html=True,
             )
-        selected = components.html(svg_component, height=420, key="svg-options")
+        selected = svg_options(svg_html=svg, height=420)
         st.markdown("</div>", unsafe_allow_html=True)
         if selected and selected != st.session_state.selected_option:
             st.session_state.selected_option = selected
