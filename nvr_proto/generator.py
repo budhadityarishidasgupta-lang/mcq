@@ -1,4 +1,14 @@
+import json
 import random
+from pathlib import Path
+
+
+PATTERNS_PATH = Path(__file__).with_name("patterns.json")
+
+
+def load_patterns():
+    with PATTERNS_PATH.open("r", encoding="utf-8") as file:
+        return json.load(file)
 
 
 def generate_sequence_question():
@@ -37,13 +47,9 @@ def generate_odd_one_out_question():
 
 
 def generate_question():
-    return random.choice([
-        generate_sequence_question(),
-        generate_odd_one_out_question(),
-        generate_structure_match_question(),
-        generate_hidden_shape_question(),
-        generate_matrix_question()
-    ])
+    patterns = load_patterns()
+    pattern = random.choice(patterns)
+    return generate_from_pattern(pattern)
 
 
 def generate_structure_match_question():
@@ -193,4 +199,72 @@ def generate_matrix_question():
         "options": options,
         "correct_index": correct_index,
         "explanation": "Across each row, the triangle rotates by 90°. The missing square must follow the same rotation."
+    }
+
+
+def generate_from_pattern(pattern):
+    """
+    Canonical pattern-driven question generator.
+    """
+
+    qtype = pattern["question_type"]
+
+    if qtype == "SEQUENCE":
+        return _wrap_sequence(pattern)
+
+    if qtype == "ODD_ONE_OUT":
+        return _wrap_odd_one_out(pattern)
+
+    if qtype == "STRUCTURE_MATCH":
+        return _wrap_structure_match(pattern)
+
+    if qtype == "HIDDEN_SHAPE":
+        return _wrap_hidden_shape(pattern)
+
+    if qtype == "MATRIX":
+        return _wrap_matrix(pattern)
+
+    raise ValueError(f"Unknown question_type: {qtype}")
+
+
+def _wrap_sequence(pattern):
+    q = generate_sequence_question()
+    return _standardise(q, pattern)
+
+
+def _wrap_odd_one_out(pattern):
+    q = generate_odd_one_out_question()
+    return _standardise(q, pattern)
+
+
+def _wrap_structure_match(pattern):
+    q = generate_structure_match_question()
+    return _standardise(q, pattern)
+
+
+def _wrap_hidden_shape(pattern):
+    q = generate_hidden_shape_question()
+    return _standardise(q, pattern)
+
+
+def _wrap_matrix(pattern):
+    q = generate_matrix_question()
+    return _standardise(q, pattern)
+
+
+def _standardise(question, pattern):
+    """
+    Enforces canonical MCQ contract.
+    """
+
+    return {
+        "pattern_id": pattern["pattern_id"],
+        "question_type": pattern["question_type"],
+        "prompt": question,
+        "options": question["options"],
+        "correct_index": question["correct_index"],
+        "explanation": question.get(
+            "explanation",
+            "Apply the same rule shown in the question."
+        )
     }
