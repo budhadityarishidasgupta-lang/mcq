@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SVG Options</title>
+    <script src="https://unpkg.com/streamlit-component-lib/dist/streamlit-component-lib.js"></script>
+    <style>
+      body {
+        margin: 0;
+      }
+      #svg-container svg {
+        width: 100%;
+        height: auto;
+      }
+      #svg-container .option-card {
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="svg-container"></div>
+    <script>
+      const root = document.getElementById("svg-container");
+
+      function attachListeners() {
+        const optionLetters = ["A", "B", "C", "D"];
+        optionLetters.forEach((letter) => {
+          const el = root.querySelector(`#option-${letter}`);
+          if (!el) {
+            return;
+          }
+          el.addEventListener("click", () => {
+            Streamlit.setComponentValue(letter);
+          });
+        });
+      }
+
+      function render(event) {
+        const { svg_html: svgHtml } = event.detail.args;
+        root.innerHTML = svgHtml || "";
+        attachListeners();
+        Streamlit.setFrameHeight(420);
+      }
+
+      Streamlit.events.addEventListener(Streamlit.RENDER_EVENT, render);
+      Streamlit.setComponentReady();
+    </script>
+  </body>
+</html>
