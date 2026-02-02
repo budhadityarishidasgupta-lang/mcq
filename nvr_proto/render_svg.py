@@ -1,4 +1,5 @@
 import math
+from typing import Optional
 import svgwrite
 from nvr_proto.generator import generate_question
 
@@ -234,16 +235,30 @@ def _triangle(cx: int, cy: int, size: int = 40, rot: int = 0, fill: str = "#e6ed
     return f'<polygon points="{pts_str}" fill="{fill}" />'
 
 
-def _tile(x: int, y: int, w: int, h: int, inner: str) -> str:
+def _tile(
+    x: int,
+    y: int,
+    w: int,
+    h: int,
+    inner: str,
+    option_id: Optional[str] = None,
+    selected: bool = False,
+) -> str:
+    stroke = "#58a6ff" if selected else "#2f3640"
+    stroke_width = 4 if selected else 2
+    fill = "#1f2937" if selected else "#161b22"
+    selected_class = " selected" if selected else ""
+    id_attr = f' id="{option_id}"' if option_id else ""
     return f"""
-    <g>
-      <rect x="{x}" y="{y}" width="{w}" height="{h}" rx="14" fill="#161b22" stroke="#2f3640"/>
+    <g{id_attr} class="option-card{selected_class}">
+      <rect x="{x}" y="{y}" width="{w}" height="{h}" rx="14"
+            fill="{fill}" stroke="{stroke}" stroke-width="{stroke_width}"/>
       {inner}
     </g>
     """
 
 
-def render_question_svg(question: dict) -> str:
+def render_question_svg(question: dict, selected_option: Optional[str] = None) -> str:
     """
     Universal SVG renderer for schema-driven questions.
     Returns a single SVG string containing prompt + option tiles.
@@ -253,19 +268,19 @@ def render_question_svg(question: dict) -> str:
     options = question.get("options", [])
 
     if qtype == "SEQUENCE":
-        return _render_sequence(prompt, options)
+        return _render_sequence(prompt, options, selected_option)
 
     if qtype == "ODD_ONE_OUT":
-        return _render_odd_one_out(prompt, options)
+        return _render_odd_one_out(prompt, options, selected_option)
 
     if qtype == "MATRIX":
-        return _render_matrix(prompt, options)
+        return _render_matrix(prompt, options, selected_option)
 
     # Fallback: show options as simple labels
-    return _render_fallback(prompt, options, title=qtype or "QUESTION")
+    return _render_fallback(prompt, options, title=qtype or "QUESTION", selected_option=selected_option)
 
 
-def _render_sequence(prompt: dict, options: list) -> str:
+def _render_sequence(prompt: dict, options: list, selected_option: Optional[str] = None) -> str:
     # prompt: {"shape": "...", "sequence": [0,90,180]}
     seq = prompt.get("sequence", [])
     inner = '<text x="24" y="36" fill="#e6edf3" font-size="18" font-family="Inter,Arial">Sequence</text>'
@@ -278,20 +293,20 @@ def _render_sequence(prompt: dict, options: list) -> str:
     inner += '<text x="370" y="96" fill="#9aa4b2" font-size="16" font-family="Inter,Arial">?</text>'
 
     # options tiles (A-D)
-    inner += _render_option_tiles(options, y=130)
+    inner += _render_option_tiles(options, y=130, selected_option=selected_option)
     return _svg_wrap(inner, w=760, h=260)
 
 
-def _render_odd_one_out(prompt: dict, options: list) -> str:
+def _render_odd_one_out(prompt: dict, options: list, selected_option: Optional[str] = None) -> str:
     inner = '<text x="24" y="36" fill="#e6edf3" font-size="18" font-family="Inter,Arial">Odd one out</text>'
     # prompt stem: show 4 shapes (same as options conceptually)
     for i, rot in enumerate(options[:4]):
         inner += _triangle(90 + i * 120, 90, size=24, rot=int(rot))
-    inner += _render_option_tiles(options, y=130)
+    inner += _render_option_tiles(options, y=130, selected_option=selected_option)
     return _svg_wrap(inner, w=760, h=260)
 
 
-def _render_matrix(prompt: dict, options: list) -> str:
+def _render_matrix(prompt: dict, options: list, selected_option: Optional[str] = None) -> str:
     """
     Responsive 3x3 matrix renderer.
     """
@@ -339,18 +354,19 @@ def _render_matrix(prompt: dict, options: list) -> str:
                 )
 
     # Options row (responsive)
-    inner += _render_option_tiles(options, y=220)
+    inner += _render_option_tiles(options, y=220, selected_option=selected_option)
 
     return _svg_wrap(inner, w=760, h=340)
 
 
-def _render_option_tiles(options: list, y: int = 130) -> str:
+def _render_option_tiles(options: list, y: int = 130, selected_option: Optional[str] = None) -> str:
     # render 4 option tiles as rotations (0/90/180/270)
     labels = ["A", "B", "C", "D"]
     tile_w, tile_h = 150, 100
     gap = 20
     x0 = 24
     out = ""
+    selected = selected_option.upper() if selected_option else None
     for i in range(min(4, len(options))):
         x = x0 + i * (tile_w + gap)
         rot = options[i]
@@ -359,11 +375,25 @@ def _render_option_tiles(options: list, y: int = 130) -> str:
             f'font-family="Inter,Arial">{labels[i]}</text>'
         )
         inner += _triangle(x + tile_w // 2, y + 62, size=22, rot=int(rot))
-        out += _tile(x, y, tile_w, tile_h, inner)
+        option_id = f"option-{labels[i]}"
+        out += _tile(
+            x,
+            y,
+            tile_w,
+            tile_h,
+            inner,
+            option_id=option_id,
+            selected=labels[i] == selected,
+        )
     return out
 
 
-def _render_fallback(prompt: dict, options: list, title: str = "QUESTION") -> str:
+def _render_fallback(
+    prompt: dict,
+    options: list,
+    title: str = "QUESTION",
+    selected_option: Optional[str] = None,
+) -> str:
     inner = (
         f'<text x="24" y="36" fill="#e6edf3" font-size="18" font-family="Inter,Arial">{title}</text>'
     )
@@ -371,6 +401,6 @@ def _render_fallback(prompt: dict, options: list, title: str = "QUESTION") -> st
         '<text x="24" y="64" fill="#9aa4b2" font-size="14" '
         'font-family="Inter,Arial">Renderer not implemented for this type yet.</text>'
     )
-    inner += _render_option_tiles(options, y=130)
+    inner += _render_option_tiles(options, y=130, selected_option=selected_option)
     return _svg_wrap(inner, w=760, h=260)
     return question

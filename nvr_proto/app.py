@@ -29,30 +29,6 @@ st.markdown(
             font-weight: 600;
             margin-bottom: 0.75rem;
         }
-        .option-grid {
-            margin-top: 1rem;
-        }
-        .option-grid div[data-testid="stButton"] > button {
-            padding: 1.6rem 1rem;
-            border-radius: 14px;
-            border: 2px solid #1f2937;
-            font-size: 1.4rem;
-            font-weight: 600;
-            min-height: 96px;
-            transition: all 0.15s ease-in-out;
-        }
-        .option-grid div[data-testid="stButton"] > button[data-testid="baseButton-primary"] {
-            background-color: #1f6feb;
-            border: 3px solid #58a6ff;
-            color: #ffffff;
-            font-weight: 700;
-        }
-        .option-grid div[data-testid="stButton"] > button[data-testid="baseButton-secondary"] {
-            background-color: #f8fafc;
-        }
-        .option-grid div[data-testid="stButton"] > button:hover {
-            border-color: #2563eb;
-        }
         .submit-row {
             margin-top: 0.75rem;
         }
@@ -116,7 +92,72 @@ if "current_question" not in st.session_state:
     st.session_state.current_question = generate_from_pattern(pattern)
 
 question = normalize_question(st.session_state.current_question)
-svg = render_question_svg(question)
+if "selected_option" not in st.session_state:
+    st.session_state.selected_option = None
+
+if "last_result" not in st.session_state:
+    st.session_state.last_result = None
+
+svg = render_question_svg(question, selected_option=st.session_state.selected_option)
+svg_component = f"""
+<div id="svg-container" style="width: 100%;">
+  {svg}
+</div>
+<style>
+  #svg-container svg {{
+    width: 100%;
+    height: auto;
+  }}
+  #svg-container .option-card {{
+    cursor: pointer;
+  }}
+  #svg-container .option-card rect {{
+    transition: stroke 0.15s ease, fill 0.15s ease;
+  }}
+  #svg-container .option-card.selected rect {{
+    stroke: #58a6ff;
+    stroke-width: 4;
+    fill: #1f2937;
+  }}
+</style>
+<script>
+  const streamlit = window.parent.Streamlit;
+  const root = document.getElementById("svg-container");
+  const optionLetters = ["A", "B", "C", "D"];
+
+  const clearSelection = () => {{
+    root.querySelectorAll(".option-card").forEach((node) => {{
+      node.classList.remove("selected");
+    }});
+  }};
+
+  const setSelection = (letter) => {{
+    clearSelection();
+    const selected = root.querySelector(`#option-${{letter}}`);
+    if (selected) {{
+      selected.classList.add("selected");
+    }}
+  }};
+
+  optionLetters.forEach((letter) => {{
+    const el = root.querySelector(`#option-${{letter}}`);
+    if (!el) {{
+      return;
+    }}
+    el.addEventListener("click", () => {{
+      setSelection(letter);
+      if (streamlit) {{
+        streamlit.setComponentValue(letter);
+      }}
+    }});
+  }});
+
+  if (streamlit) {{
+    streamlit.setComponentReady();
+    streamlit.setFrameHeight(420);
+  }}
+</script>
+"""
 
 with st.container():
     _, center_col, _ = st.columns([1, 3, 1])
@@ -127,32 +168,11 @@ with st.container():
                 f"<div class='prompt-text'>{question['prompt']}</div>",
                 unsafe_allow_html=True,
             )
-        components.html(svg, height=420)
+        selected = components.html(svg_component, height=420, key="svg-options")
         st.markdown("</div>", unsafe_allow_html=True)
-
-if "selected_option" not in st.session_state:
-    st.session_state.selected_option = None
-
-if "last_result" not in st.session_state:
-    st.session_state.last_result = None
-
-options = ["A", "B", "C", "D"]
-st.markdown('<div class="option-grid">', unsafe_allow_html=True)
-for row in range(2):
-    cols = st.columns(2)
-    for col_index, col in enumerate(cols):
-        opt_index = row * 2 + col_index
-        opt = options[opt_index]
-        is_selected = st.session_state.selected_option == opt
-        button_type = "primary" if is_selected else "secondary"
-        if col.button(
-            opt,
-            key=f"opt_{opt}",
-            type=button_type,
-            use_container_width=True,
-        ):
-            st.session_state.selected_option = opt
-st.markdown("</div>", unsafe_allow_html=True)
+        if selected and selected != st.session_state.selected_option:
+            st.session_state.selected_option = selected
+            st.rerun()
 
 if st.session_state.last_result is None:
     st.markdown('<div class="submit-row">', unsafe_allow_html=True)
