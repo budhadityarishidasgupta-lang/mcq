@@ -6,11 +6,23 @@ from pathlib import Path
 PATTERNS_PATH = Path(__file__).with_name("patterns.json")
 
 
+def apply_rotation(value, step):
+    return (value + step) % 360
+
+
+def build_sequence(pattern):
+    seq = pattern["start_values"][:]
+    step = pattern["transformations"][0]["step"]
+    next_val = apply_rotation(seq[-1], step)
+    return seq, next_val
+
+
 def load_patterns():
     with PATTERNS_PATH.open("r", encoding="utf-8") as file:
         return json.load(file)
 
 
+# DEPRECATED: logic migrated to pattern schemas
 def generate_sequence_question():
     sequence = [0, 90, 180]
     options = [0, 90, 180, 270]
@@ -27,6 +39,7 @@ def generate_sequence_question():
     }
 
 
+# DEPRECATED: logic migrated to pattern schemas
 def generate_odd_one_out_question():
     """
     Three triangles point up (0°),
@@ -52,6 +65,7 @@ def generate_question():
     return generate_from_pattern(pattern)
 
 
+# DEPRECATED: logic migrated to pattern schemas
 def generate_structure_match_question():
     """
     Structure Match:
@@ -117,6 +131,8 @@ def generate_structure_match_question():
         "explanation": "The correct option keeps the same structure: a square connected between two circles."
     }
 
+
+# DEPRECATED: logic migrated to pattern schemas
 def generate_hidden_shape_question():
     """
     Hidden Shape:
@@ -174,6 +190,9 @@ def generate_hidden_shape_question():
         "correct_index": correct_index,
         "explanation": "The correct option contains all the lines of the target L-shape in the same arrangement."
     }
+
+
+# DEPRECATED: logic migrated to pattern schemas
 def generate_matrix_question():
     """
     Matrix / Complete the square
@@ -228,13 +247,41 @@ def generate_from_pattern(pattern):
 
 
 def _wrap_sequence(pattern):
-    q = generate_sequence_question()
-    return _standardise(q, pattern)
+    seq, correct = build_sequence(pattern)
+
+    options = pattern["options"]
+    correct_index = options.index(correct)
+
+    return {
+        "pattern_id": pattern["pattern_id"],
+        "question_type": "SEQUENCE",
+        "prompt": {
+            "shape": pattern["shape"],
+            "sequence": seq
+        },
+        "options": options,
+        "correct_index": correct_index,
+        "explanation": f"The shape rotates by {pattern['transformations'][0]['step']}° each time."
+    }
 
 
 def _wrap_odd_one_out(pattern):
-    q = generate_odd_one_out_question()
-    return _standardise(q, pattern)
+    options = (
+        [pattern["common_value"]] * 3
+        + [pattern["odd_value"]]
+    )
+    random.shuffle(options)
+
+    return {
+        "pattern_id": pattern["pattern_id"],
+        "question_type": "ODD_ONE_OUT",
+        "prompt": {
+            "shape": pattern["shape"]
+        },
+        "options": options,
+        "correct_index": options.index(pattern["odd_value"]),
+        "explanation": "Three shapes follow the same rule. One breaks it."
+    }
 
 
 def _wrap_structure_match(pattern):
@@ -248,8 +295,22 @@ def _wrap_hidden_shape(pattern):
 
 
 def _wrap_matrix(pattern):
-    q = generate_matrix_question()
-    return _standardise(q, pattern)
+    rule = pattern["rule"]
+    options = pattern["options"]
+    correct = apply_rotation(90, rule["step"])
+    correct_index = options.index(correct)
+
+    return {
+        "pattern_id": pattern["pattern_id"],
+        "question_type": "MATRIX",
+        "prompt": {
+            "shape": pattern["shape"],
+            "matrix": pattern["matrix_template"]
+        },
+        "options": options,
+        "correct_index": correct_index,
+        "explanation": f"The shape rotates by {rule['step']}° across the row."
+    }
 
 
 def _standardise(question, pattern):
