@@ -16,7 +16,7 @@ def get_db_connection():
 def init_nvr_tables():
     ddl = [
         """
-        CREATE TABLE IF NOT EXISTS nvr_users (
+        CREATE TABLE IF NOT EXISTS mcq_users (
           id SERIAL PRIMARY KEY,
           email TEXT UNIQUE NOT NULL,
           name TEXT,
@@ -24,7 +24,7 @@ def init_nvr_tables():
         );
         """,
         """
-        CREATE TABLE IF NOT EXISTS nvr_attempts (
+        CREATE TABLE IF NOT EXISTS mcq_attempts (
           id SERIAL PRIMARY KEY,
           user_id INTEGER NOT NULL,
           pattern_id TEXT NOT NULL,
