@@ -14,37 +14,31 @@ def get_db_connection():
 
 
 def init_nvr_tables():
-    ddl = [
-        """
-        CREATE TABLE IF NOT EXISTS mcq_users (
-          id SERIAL PRIMARY KEY,
-          email TEXT UNIQUE NOT NULL,
-          name TEXT,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS mcq_attempts (
-          id SERIAL PRIMARY KEY,
-          user_id INTEGER NOT NULL,
-          pattern_id TEXT NOT NULL,
-          family TEXT NOT NULL,
-          level INTEGER NOT NULL,
-          is_correct BOOLEAN NOT NULL,
-          duration_ms INTEGER,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-        """,
-        """
-        CREATE INDEX IF NOT EXISTS idx_nvr_attempts_user_family_level
-        ON nvr_attempts(user_id, family, level);
-        """,
-    ]
     conn = get_db_connection()
-    conn.autocommit = True
     try:
         with conn.cursor() as cur:
-            for statement in ddl:
-                cur.execute(statement)
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS nvr_users (
+                  id SERIAL PRIMARY KEY,
+                  email TEXT UNIQUE,
+                  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+                """
+            )
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS nvr_attempts (
+                  id SERIAL PRIMARY KEY,
+                  user_id INTEGER,
+                  pattern_id TEXT,
+                  family TEXT,
+                  level INTEGER,
+                  is_correct BOOLEAN,
+                  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+                """
+            )
+            conn.commit()
     finally:
         conn.close()
