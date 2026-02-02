@@ -1,22 +1,35 @@
 [
   {
-    "pattern_id": "NVR_SEQ_001",
-    "question_type": "SEQUENCE"
+    "pattern_id": "NVR_SEQ_ROT_90",
+    "question_type": "SEQUENCE",
+    "shape": "triangle",
+    "transformations": [
+      { "type": "rotation", "step": 90 }
+    ],
+    "start_values": [0, 90, 180],
+    "options": [0, 90, 180, 270],
+    "difficulty": "easy",
+    "distractor_rules": ["wrong_step", "reverse"]
   },
   {
-    "pattern_id": "NVR_ODD_001",
-    "question_type": "ODD_ONE_OUT"
+    "pattern_id": "NVR_ODD_ROT",
+    "question_type": "ODD_ONE_OUT",
+    "shape": "triangle",
+    "common_value": 0,
+    "odd_value": 180,
+    "difficulty": "easy"
   },
   {
-    "pattern_id": "NVR_STRUCT_001",
-    "question_type": "STRUCTURE_MATCH"
-  },
-  {
-    "pattern_id": "NVR_HIDDEN_001",
-    "question_type": "HIDDEN_SHAPE"
-  },
-  {
-    "pattern_id": "NVR_MATRIX_001",
-    "question_type": "MATRIX"
+    "pattern_id": "NVR_MATRIX_ROT",
+    "question_type": "MATRIX",
+    "shape": "triangle",
+    "rule": { "type": "rotation", "step": 90 },
+    "matrix_template": [
+      [0, 90, null],
+      [0, 90, 180],
+      [0, 90, 180]
+    ],
+    "options": [180, 0, 90, 270],
+    "difficulty": "medium"
   }
 ]
