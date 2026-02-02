@@ -1,7 +1,7 @@
 import random
 
 import streamlit as st
-from nvr_proto.components.svg_options import svg_options
+import streamlit.components.v1 as components
 from nvr_proto.db import init_nvr_tables
 from nvr_proto.generator import generate_from_pattern, load_patterns
 from nvr_proto.render_svg import render_question_svg
@@ -56,28 +56,6 @@ if not email:
     st.stop()
 
 
-def normalize_question(q):
-    if "correct_option" in q:
-        correct_option = q["correct_option"]
-    elif "correct" in q:
-        correct_option = q["correct"]
-    elif "answer" in q:
-        correct_option = q["answer"]
-    elif "solution" in q:
-        correct_option = q["solution"]
-    elif "correct_index" in q:
-        option_map = ["A", "B", "C", "D"]
-        correct_option = option_map[q["correct_index"]]
-    else:
-        st.error(
-            "Unable to determine correct option. Available keys: "
-            f"{sorted(q.keys())}"
-        )
-        st.stop()
-
-    return {**q, "correct_option": correct_option}
-
-
 def extract_explanation(q):
     for key in ("explanation", "reason", "rule", "logic", "hint"):
         if q.get(key):
@@ -90,41 +68,51 @@ if "current_question" not in st.session_state:
     pattern = random.choice(load_patterns())
     st.session_state.current_question = generate_from_pattern(pattern)
 
-question = normalize_question(st.session_state.current_question)
-if "selected_option" not in st.session_state:
-    st.session_state.selected_option = None
+question = st.session_state.current_question
+if "selected" not in st.session_state:
+    st.session_state.selected = None
 
 if "last_result" not in st.session_state:
     st.session_state.last_result = None
 
-svg = render_question_svg(question, selected_option=st.session_state.selected_option)
+labels = ["A", "B", "C", "D"]
+selected_label = (
+    labels[st.session_state.selected]
+    if st.session_state.selected is not None
+    else None
+)
+svg = render_question_svg(question, selected_option=selected_label)
 
 with st.container():
     _, center_col, _ = st.columns([1, 3, 1])
     with center_col:
         st.markdown('<div class="question-block">', unsafe_allow_html=True)
-        if question.get("prompt"):
-            st.markdown(
-                f"<div class='prompt-text'>{question['prompt']}</div>",
-                unsafe_allow_html=True,
-            )
-        selected = svg_options(svg_html=svg, height=420)
+        components.html(svg, height=520)
         st.markdown("</div>", unsafe_allow_html=True)
-        if selected and selected != st.session_state.selected_option:
-            st.session_state.selected_option = selected
-            st.rerun()
+
+        button_cols = st.columns(4)
+        for idx, label in enumerate(labels):
+            button_type = "primary" if st.session_state.selected == idx else "secondary"
+            if button_cols[idx].button(
+                label,
+                key=f"option_{label}",
+                type=button_type,
+                use_container_width=True,
+            ):
+                st.session_state.selected = idx
+                st.rerun()
 
 if st.session_state.last_result is None:
     st.markdown('<div class="submit-row">', unsafe_allow_html=True)
     if st.button(
         "Submit",
-        disabled=st.session_state.selected_option is None,
+        disabled=st.session_state.selected is None,
         key="submit_button",
         type="primary",
         use_container_width=True,
     ):
         st.session_state.last_result = (
-            st.session_state.selected_option == question["correct_option"]
+            st.session_state.selected == question["correct_index"]
         )
     st.markdown("</div>", unsafe_allow_html=True)
 
@@ -139,7 +127,7 @@ if st.session_state.last_result is not None:
     st.markdown("</div>", unsafe_allow_html=True)
 
     if st.button("Next Question", use_container_width=True):
-        del st.session_state.current_question
-        del st.session_state.selected_option
-        del st.session_state.last_result
+        for key in ("current_question", "selected", "last_result"):
+            if key in st.session_state:
+                del st.session_state[key]
         st.rerun()
