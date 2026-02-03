@@ -2,19 +2,14 @@ import json
 import random
 from pathlib import Path
 
-
 PATTERNS_PATH = Path(__file__).with_name("patterns.json")
 
+# -------------------------------------------------
+# Utilities
+# -------------------------------------------------
 
 def apply_rotation(value, step):
     return (value + step) % 360
-
-
-def build_sequence(pattern):
-    seq = pattern["start_values"][:]
-    step = pattern["transformations"][0]["step"]
-    next_val = apply_rotation(seq[-1], step)
-    return seq, next_val
 
 
 def load_patterns():
@@ -22,310 +17,110 @@ def load_patterns():
         return json.load(file)
 
 
-# DEPRECATED: logic migrated to pattern schemas
-def generate_sequence_question():
-    sequence = [0, 90, 180]
-    options = [0, 90, 180, 270]
-    correct_rotation = 270
-    correct_index = options.index(correct_rotation)
-
-    return {
-        "type": "sequence",
-        "shape": "triangle",
-        "sequence": sequence,
-        "options": options,
-        "correct_index": correct_index,
-        "explanation": "The triangle rotates by 90° each time. The next shape must follow the same rotation."
-    }
-
-
-# DEPRECATED: logic migrated to pattern schemas
-def generate_odd_one_out_question():
-    """
-    Three triangles point up (0°),
-    one points down (180°)
-    """
-
-    options = [0, 0, 0, 180]
-    random.shuffle(options)
-    correct_index = options.index(180)
-
-    return {
-        "type": "odd_one_out",
-        "shape": "triangle",
-        "options": options,
-        "correct_index": correct_index,
-        "explanation": "Three triangles point up, but one points down. The odd one out is the one facing the opposite way."
-    }
-
+# -------------------------------------------------
+# PUBLIC API (USED BY UI / STREAMLIT)
+# -------------------------------------------------
 
 def generate_question():
+    """
+    Canonical NVR generator output.
+    Returns ONLY clickable patterns (no MCQ).
+    """
+
     patterns = load_patterns()
-    pattern = random.choice(patterns)
-    return generate_from_pattern(pattern)
+    schema = random.choice(patterns)
 
-
-# DEPRECATED: logic migrated to pattern schemas
-def generate_structure_match_question():
-    """
-    Structure Match:
-    Circle -> Square -> Circle
-    """
-
-    structure = {
-        "nodes": [
-            {"id": 1, "type": "circle"},
-            {"id": 2, "type": "square"},
-            {"id": 3, "type": "circle"},
-        ],
-        "edges": [
-            (1, 2),
-            (2, 3),
-        ]
-    }
-
-    # Correct option follows same structure
-    correct_structure = structure
-
-    # Wrong options (break one rule each)
-    wrong_structures = [
-        # wrong middle
-        {
-            "nodes": [
-                {"id": 1, "type": "circle"},
-                {"id": 2, "type": "circle"},
-                {"id": 3, "type": "square"},
-            ],
-            "edges": [(1, 2), (2, 3)]
-        },
-        # missing node
-        {
-            "nodes": [
-                {"id": 1, "type": "circle"},
-                {"id": 2, "type": "square"},
-            ],
-            "edges": [(1, 2)]
-        },
-        # extra node
-        {
-            "nodes": [
-                {"id": 1, "type": "circle"},
-                {"id": 2, "type": "square"},
-                {"id": 3, "type": "circle"},
-                {"id": 4, "type": "triangle"},
-            ],
-            "edges": [(1, 2), (2, 3), (3, 4)]
-        }
-    ]
-
-    options = [correct_structure] + wrong_structures
-    random.shuffle(options)
-
-    correct_index = options.index(correct_structure)
-
-    return {
-        "type": "structure_match",
-        "examples": [structure, structure, structure],
-        "options": options,
-        "correct_index": correct_index,
-        "explanation": "The correct option keeps the same structure: a square connected between two circles."
-    }
-
-
-# DEPRECATED: logic migrated to pattern schemas
-def generate_hidden_shape_question():
-    """
-    Hidden Shape:
-    Target is an L-shape made of 2 lines
-    """
-
-    # Target shape definition (relative coordinates)
-    target_shape = [
-        ((0, 0), (40, 0)),   # horizontal line
-        ((0, 0), (0, 40)),   # vertical line
-    ]
-
-    # Correct container includes target exactly
-    correct_container = {
-        "lines": target_shape + [
-            ((40, 0), (40, 40)),
-            ((0, 40), (40, 40)),
-        ]
-    }
-
-    # Wrong containers (almost but not exact)
-    wrong_containers = [
-        # Missing one line
-        {
-            "lines": [
-                ((0, 0), (40, 0)),
-                ((40, 0), (40, 40)),
-            ]
-        },
-        # Rotated target (doesn't match)
-        {
-            "lines": [
-                ((0, 0), (0, 40)),
-                ((0, 40), (40, 40)),
-            ]
-        },
-        # Extra misleading lines but missing target
-        {
-            "lines": [
-                ((10, 0), (10, 40)),
-                ((0, 10), (40, 10)),
-            ]
-        }
-    ]
-
-    options = [correct_container] + wrong_containers
-    random.shuffle(options)
-
-    correct_index = options.index(correct_container)
-
-    return {
-        "type": "hidden_shape",
-        "target": target_shape,
-        "options": options,
-        "correct_index": correct_index,
-        "explanation": "The correct option contains all the lines of the target L-shape in the same arrangement."
-    }
-
-
-# DEPRECATED: logic migrated to pattern schemas
-def generate_matrix_question():
-    """
-    Matrix / Complete the square
-    Rule: rotate triangle by 90 degrees across the row
-    """
-
-    # Matrix values (rotations)
-    matrix = [
-        [0, 90, None],
-        [0, 90, 180],
-        [0, 90, 180],
-    ]
-
-    correct_value = 180
-
-    # Options (rotations)
-    options = [180, 0, 90, 270]
-    correct_index = options.index(correct_value)
-
-    return {
-        "type": "matrix",
-        "matrix": matrix,
-        "options": options,
-        "correct_index": correct_index,
-        "explanation": "Across each row, the triangle rotates by 90°. The missing square must follow the same rotation."
-    }
-
-
-def generate_from_pattern(pattern):
-    """
-    Canonical pattern-driven question generator.
-    """
-
-    qtype = pattern["question_type"]
+    qtype = schema["question_type"]
 
     if qtype == "SEQUENCE":
-        return _wrap_sequence(pattern)
+        return _sequence(schema)
 
     if qtype == "ODD_ONE_OUT":
-        return _wrap_odd_one_out(pattern)
-
-    if qtype == "STRUCTURE_MATCH":
-        return _wrap_structure_match(pattern)
-
-    if qtype == "HIDDEN_SHAPE":
-        return _wrap_hidden_shape(pattern)
+        return _odd_one_out(schema)
 
     if qtype == "MATRIX":
-        return _wrap_matrix(pattern)
+        return _matrix(schema)
 
-    raise ValueError(f"Unknown question_type: {qtype}")
+    # fallback (safe)
+    raise ValueError(f"Unsupported question_type: {qtype}")
 
 
-def _wrap_sequence(pattern):
-    seq, correct = build_sequence(pattern)
+# -------------------------------------------------
+# QUESTION BUILDERS (UI CONTRACT)
+# -------------------------------------------------
 
-    options = pattern["options"]
-    correct_index = options.index(correct)
+def _sequence(schema):
+    start = schema["start_values"][:]
+    step = schema["transformations"][0]["step"]
+
+    next_val = apply_rotation(start[-1], step)
+
+    tiles = []
+    for v in schema["options"]:
+        tiles.append({
+            "shape": schema["shape"],
+            "rotation": v,
+            "reflect": "none",
+            "fill": "outline",
+            "correct": v == next_val
+        })
+
+    random.shuffle(tiles)
 
     return {
-        "pattern_id": pattern["pattern_id"],
         "question_type": "SEQUENCE",
-        "prompt": {
-            "shape": pattern["shape"],
-            "sequence": seq
-        },
-        "options": options,
-        "correct_index": correct_index,
-        "explanation": f"The shape rotates by {pattern['transformations'][0]['step']}° each time."
+        "patterns": tiles,
+        "explanation": f"The shape rotates by {step}° each step."
     }
 
 
-def _wrap_odd_one_out(pattern):
-    options = (
-        [pattern["common_value"]] * 3
-        + [pattern["odd_value"]]
+def _odd_one_out(schema):
+    values = (
+        [schema["common_value"]] * 3
+        + [schema["odd_value"]]
     )
-    random.shuffle(options)
+    random.shuffle(values)
+
+    tiles = []
+    for v in values:
+        tiles.append({
+            "shape": schema["shape"],
+            "rotation": v,
+            "reflect": "none",
+            "fill": "outline",
+            "correct": v == schema["odd_value"]
+        })
 
     return {
-        "pattern_id": pattern["pattern_id"],
         "question_type": "ODD_ONE_OUT",
-        "prompt": {
-            "shape": pattern["shape"]
-        },
-        "options": options,
-        "correct_index": options.index(pattern["odd_value"]),
-        "explanation": "Three shapes follow the same rule. One breaks it."
+        "patterns": tiles,
+        "explanation": "Three patterns follow the same rule. One breaks it."
     }
 
 
-def _wrap_structure_match(pattern):
-    q = generate_structure_match_question()
-    return _standardise(q, pattern)
+def _matrix(schema):
+    rule = schema["rule"]
+    options = schema["options"]
 
+    correct = apply_rotation(
+        schema["matrix_template"][0][1],
+        rule["step"]
+    )
 
-def _wrap_hidden_shape(pattern):
-    q = generate_hidden_shape_question()
-    return _standardise(q, pattern)
+    tiles = []
+    for v in options:
+        tiles.append({
+            "shape": schema["shape"],
+            "rotation": v,
+            "reflect": "none",
+            "fill": "outline",
+            "correct": v == correct
+        })
 
-
-def _wrap_matrix(pattern):
-    rule = pattern["rule"]
-    options = pattern["options"]
-    correct = apply_rotation(90, rule["step"])
-    correct_index = options.index(correct)
+    random.shuffle(tiles)
 
     return {
-        "pattern_id": pattern["pattern_id"],
         "question_type": "MATRIX",
-        "prompt": {
-            "shape": pattern["shape"],
-            "matrix": pattern["matrix_template"]
-        },
-        "options": options,
-        "correct_index": correct_index,
+        "patterns": tiles,
         "explanation": f"The shape rotates by {rule['step']}° across the row."
-    }
-
-
-def _standardise(question, pattern):
-    """
-    Enforces canonical MCQ contract.
-    """
-
-    return {
-        "pattern_id": pattern["pattern_id"],
-        "question_type": pattern["question_type"],
-        "prompt": question,
-        "options": question["options"],
-        "correct_index": question["correct_index"],
-        "explanation": question.get(
-            "explanation",
-            "Apply the same rule shown in the question."
-        )
     }
