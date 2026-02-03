@@ -3,7 +3,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 from nvr_proto.db import init_nvr_tables
-from nvr_proto.generator import load_patterns, generate_from_pattern
+#from nvr_proto.generator import load_patterns, generate_from_pattern      NO generator imports needed here
 from nvr_proto.render_svg import render_question_svg
 
 # -------------------------------------------------
