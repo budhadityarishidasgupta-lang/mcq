@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Pattern Click Grid Prototype</title>
+  <style>
+    :root{
+      --bg:#0b0f14;
+      --panel:#0f1520;
+      --tile:#111a26;
+      --tile2:#0f1722;
+      --text:#e6edf6;
+      --muted:#9aa7b5;
+      --stroke:rgba(255,255,255,.12);
+      --stroke2:rgba(255,255,255,.22);
+      --ok:#2ecc71;
+      --bad:#ff4d4f;
+
+      --tileSize:96px;
+      --iconSize:48px;
+      --gap:16px;
+      --radius:16px;
+    }
+
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background: radial-gradient(1200px 800px at 50% 0%, #101827 0%, var(--bg) 55%, #070a0f 100%);
+      color:var(--text);
+      min-height:100vh;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:24px;
+    }
+
+    .app{
+      width:min(980px, 100%);
+    }
+
+    .header{
+      display:flex;
+      align-items:flex-end;
+      justify-content:space-between;
+      margin-bottom:18px;
+    }
+    .title{
+      font-size:20px;
+      letter-spacing:.2px;
+    }
+    .sub{
+      font-size:13px;
+      color:var(--muted);
+      margin-top:6px;
+    }
+
+    .panel{
+      background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+      border: 1px solid var(--stroke);
+      border-radius:20px;
+      padding:24px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.35);
+    }
+
+    .row{
+      display:flex;
+      gap:var(--gap);
+      justify-content:center;
+      flex-wrap:wrap;
+      padding:6px 0 16px;
+    }
+
+    .divider{
+      height:1px;
+      background:rgba(255,255,255,.08);
+      margin:16px 0;
+    }
+
+    .prompt{
+      text-align:center;
+      font-size:14px;
+      color:var(--muted);
+      margin:10px 0 6px;
+    }
+
+    .grid{
+      display:flex;
+      gap:var(--gap);
+      justify-content:center;
+      flex-wrap:wrap;
+      padding:10px 0 2px;
+    }
+
+    .tile{
+      width:var(--tileSize);
+      height:var(--tileSize);
+      background: linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.01));
+      border:1px solid var(--stroke);
+      border-radius:var(--radius);
+      display:grid;
+      place-items:center;
+      cursor:pointer;
+      transition: transform .08s ease, border-color .12s ease, box-shadow .12s ease;
+      user-select:none;
+    }
+    .tile:hover{
+      border-color: var(--stroke2);
+      box-shadow: 0 0 0 6px rgba(255,255,255,.03);
+      transform: translateY(-1px);
+    }
+    .tile[aria-disabled="true"]{
+      cursor:not-allowed;
+      opacity:.8;
+    }
+
+    .tile.selected{
+      border-color: rgba(255,255,255,.42);
+      box-shadow: 0 0 0 6px rgba(255,255,255,.05);
+    }
+    .tile.correct{
+      border-color: rgba(46,204,113,.9);
+      box-shadow: 0 0 0 6px rgba(46,204,113,.10);
+    }
+    .tile.wrong{
+      border-color: rgba(255,77,79,.9);
+      box-shadow: 0 0 0 6px rgba(255,77,79,.10);
+    }
+
+    svg{
+      width:var(--iconSize);
+      height:var(--iconSize);
+    }
+
+    .footer{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      margin-top:14px;
+      color:var(--muted);
+      font-size:12px;
+    }
+
+    @media (max-width:520px){
+      :root{
+        --tileSize:84px;
+        --iconSize:42px;
+        --gap:12px;
+      }
+      .panel{padding:18px}
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="header">
+      <div>
+        <div class="title">Click the matching pattern</div>
+        <div class="sub">Prototype: patterns are tiles — no A/B/C/D buttons</div>
+      </div>
+      <div class="sub" id="status">Ready</div>
+    </div>
+
+    <div class="panel">
+      <!-- Question Row -->
+      <div class="row" id="questionRow"></div>
+
+      <div class="divider"></div>
+
+      <div class="prompt">Tap the correct match below</div>
+
+      <!-- Answer Grid -->
+      <div class="grid" id="answerGrid"></div>
+
+      <div class="footer">
+        <div id="meta">Q1 • 1 correct</div>
+        <button id="nextBtn" style="display:none;">Next</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ---------- Demo Data (replace later with generator) ----------
+    const question = [
+      { id:"q1", rot: 0,   flip:false },
+      { id:"q2", rot: 180, flip:false },
+      { id:"q3", rot: 0,   flip:true  },
+      { id:"q4", rot: 90,  flip:false },
+    ];
+
+    const answers = [
+      { id:"a1", rot: 0,   flip:false, correct:false },
+      { id:"a2", rot: 180, flip:false, correct:true  },
+      { id:"a3", rot: 90,  flip:false, correct:false },
+      { id:"a4", rot: 0,   flip:true,  correct:false },
+    ];
+
+    // ---------- Rendering ----------
+    const qRow = document.getElementById("questionRow");
+    const grid = document.getElementById("answerGrid");
+    const status = document.getElementById("status");
+
+    let locked = false;
+
+    function triangleSVG(rot, flip){
+      // triangle points centered. Flip uses scaleX(-1)
+      const tf = `translate(24,24) rotate(${rot}) ${flip ? "scale(-1,1)" : ""} translate(-24,-24)`;
+      return `
+        <svg viewBox="0 0 48 48" aria-hidden="true">
+          <g transform="${tf}">
+            <polygon points="24,6 42,40 6,40" fill="#ffffff"/>
+          </g>
+        </svg>
+      `;
+    }
+
+    function tile(el, item, onClick){
+      const d = document.createElement("div");
+      d.className = "tile";
+      d.setAttribute("role","button");
+      d.tabIndex = 0;
+      d.innerHTML = triangleSVG(item.rot, item.flip);
+
+      d.addEventListener("click", () => onClick(d, item));
+      d.addEventListener("keydown", (e) => {
+        if(e.key === "Enter" || e.key === " "){
+          e.preventDefault();
+          onClick(d, item);
+        }
+      });
+
+      el.appendChild(d);
+      return d;
+    }
+
+    function render(){
+      qRow.innerHTML = "";
+      grid.innerHTML = "";
+
+      question.forEach(p => tile(qRow, p, () => {}));
+
+      answers.forEach(a => tile(grid, a, handleAnswerClick));
+
+      status.textContent = "Ready";
+      locked = false;
+    }
+
+    function handleAnswerClick(node, item){
+      if(locked) return;
+
+      // clear previous selection styles
+      [...grid.children].forEach(n => n.classList.remove("selected","correct","wrong"));
+      node.classList.add("selected");
+
+      locked = true;
+      [...grid.children].forEach(n => n.setAttribute("aria-disabled","true"));
+
+      if(item.correct){
+        node.classList.add("correct");
+        status.textContent = "Correct ✓";
+      } else {
+        node.classList.add("wrong");
+        status.textContent = "Try again ✕";
+        // unlock after short delay (so it feels responsive but not chaotic)
+        setTimeout(() => {
+          locked = false;
+          [...grid.children].forEach(n => n.setAttribute("aria-disabled","false"));
+          status.textContent = "Pick again";
+        }, 550);
+      }
+    }
+
+    render();
+  </script>
+</body>
+</html>
