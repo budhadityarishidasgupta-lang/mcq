@@ -276,13 +276,19 @@ def render_question_svg(
         return _render_sequence(prompt, options, selected_option, show_options)
 
     if qtype == "ODD_ONE_OUT":
-        return _render_odd_one_out(prompt, options, selected_option)
+        return _render_odd_one_out(prompt, options, selected_option, show_options)
 
     if qtype == "MATRIX":
-        return _render_matrix(prompt, options, selected_option)
+        return _render_matrix(prompt, options, selected_option, show_options)
 
     # Fallback: show options as simple labels
-    return _render_fallback(prompt, options, title=qtype or "QUESTION", selected_option=selected_option)
+    return _render_fallback(
+        prompt,
+        options,
+        title=qtype or "QUESTION",
+        selected_option=selected_option,
+        show_options=show_options,
+    )
 
 
 def _render_sequence(
@@ -304,20 +310,32 @@ def _render_sequence(
     inner += '<text x="560" y="138" fill="#9aa4b2" font-size="20" font-family="Inter,Arial">?</text>'
 
     # options tiles (A-D)
-    inner += _render_option_tiles(options, y=230, selected_option=selected_option)
+    if show_options:
+        inner += _render_option_tiles(options, y=230, selected_option=selected_option)
     return _svg_wrap(inner, w=920, h=420)
 
 
-def _render_odd_one_out(prompt: dict, options: list, selected_option: Optional[str] = None) -> str:
+def _render_odd_one_out(
+    prompt: dict,
+    options: list,
+    selected_option: Optional[str] = None,
+    show_options: bool = True,
+) -> str:
     inner = '<text x="32" y="44" fill="#e6edf3" font-size="22" font-family="Inter,Arial">Odd one out</text>'
     # prompt stem: show 4 shapes (same as options conceptually)
     for i, rot in enumerate(options[:4]):
         inner += _triangle(150 + i * 170, 130, size=34, rot=int(rot))
-    inner += _render_option_tiles(options, y=230, selected_option=selected_option)
+    if show_options:
+        inner += _render_option_tiles(options, y=230, selected_option=selected_option)
     return _svg_wrap(inner, w=920, h=420)
 
 
-def _render_matrix(prompt: dict, options: list, selected_option: Optional[str] = None) -> str:
+def _render_matrix(
+    prompt: dict,
+    options: list,
+    selected_option: Optional[str] = None,
+    show_options: bool = True,
+) -> str:
     """
     Responsive 3x3 matrix renderer.
     """
@@ -365,7 +383,8 @@ def _render_matrix(prompt: dict, options: list, selected_option: Optional[str] =
                 )
 
     # Options row (responsive)
-    inner += _render_option_tiles(options, y=250, selected_option=selected_option)
+    if show_options:
+        inner += _render_option_tiles(options, y=250, selected_option=selected_option)
 
     return _svg_wrap(inner, w=920, h=420)
 
@@ -404,6 +423,7 @@ def _render_fallback(
     options: list,
     title: str = "QUESTION",
     selected_option: Optional[str] = None,
+    show_options: bool = True,
 ) -> str:
     inner = (
         f'<text x="24" y="36" fill="#e6edf3" font-size="18" font-family="Inter,Arial">{title}</text>'
@@ -412,6 +432,7 @@ def _render_fallback(
         '<text x="32" y="72" fill="#9aa4b2" font-size="16" '
         'font-family="Inter,Arial">Renderer not implemented for this type yet.</text>'
     )
-    inner += _render_option_tiles(options, y=230, selected_option=selected_option)
+    if show_options:
+        inner += _render_option_tiles(options, y=230, selected_option=selected_option)
     return _svg_wrap(inner, w=920, h=420)
     return question
