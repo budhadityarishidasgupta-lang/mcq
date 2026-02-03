@@ -136,10 +136,6 @@ def normalize_question(q: dict) -> dict:
 
     return {}
 
-
-
-
-
 # -----------------------------
 # Session state
 # -----------------------------
@@ -154,9 +150,24 @@ if "submitted" not in st.session_state:
 
 question = st.session_state.question
 
-# safety guard
-if not isinstance(question, dict) or "question_type" not in question or "options" not in question:
-    st.error("Invalid question schema from generator.")
+
+# -----------------------------
+# SAFETY GUARD
+# -----------------------------
+if (
+    not isinstance(question, dict)
+    or "question_type" not in question
+    or "options" not in question
+    or "correct_index" not in question
+):
+    st.error(
+        f"Invalid question schema from generator. "
+        f"Keys received: {list((question or {}).keys())}"
+    )
+    st.stop()
+
+if len(question["options"]) != 4:
+    st.error(f"Expected 4 options, got {len(question['options'])}")
     st.stop()
 
 labels = ["A", "B", "C", "D"]
