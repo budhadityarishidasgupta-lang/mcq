@@ -50,26 +50,33 @@ def generate_question():
 # -------------------------------------------------
 
 def _sequence(schema):
-    start = schema["start_values"][:]
+    start = schema["start_values"]
     step = schema["transformations"][0]["step"]
 
-    next_val = apply_rotation(start[-1], step)
+    correct_value = apply_rotation(start[-1], step)
 
-    tiles = []
-    for v in schema["options"]:
-        tiles.append({
-            "shape": schema["shape"],
-            "rotation": v,
-            "reflect": "none",
-            "fill": "outline",
-            "correct": v == next_val
-        })
+    options = schema["options"][:]
+    random.shuffle(options)
 
-    random.shuffle(tiles)
+    correct_index = options.index(correct_value)
 
     return {
+        "pattern_id": schema["id"],
         "question_type": "SEQUENCE",
-        "patterns": tiles,
+        "prompt": {
+            "shape": schema["shape"],
+            "sequence": start,
+        },
+        "options": [
+            {
+                "shape": schema["shape"],
+                "rotation": v,
+                "reflect": "none",
+                "fill": "outline",
+            }
+            for v in options
+        ],
+        "correct_index": correct_index,
         "explanation": f"The shape rotates by {step}° each step."
     }
 
@@ -81,46 +88,57 @@ def _odd_one_out(schema):
     )
     random.shuffle(values)
 
-    tiles = []
-    for v in values:
-        tiles.append({
-            "shape": schema["shape"],
-            "rotation": v,
-            "reflect": "none",
-            "fill": "outline",
-            "correct": v == schema["odd_value"]
-        })
+    correct_index = values.index(schema["odd_value"])
 
     return {
+        "pattern_id": schema["id"],
         "question_type": "ODD_ONE_OUT",
-        "patterns": tiles,
+        "prompt": {
+            "shape": schema["shape"],
+        },
+        "options": [
+            {
+                "shape": schema["shape"],
+                "rotation": v,
+                "reflect": "none",
+                "fill": "outline",
+            }
+            for v in values
+        ],
+        "correct_index": correct_index,
         "explanation": "Three patterns follow the same rule. One breaks it."
     }
 
 
 def _matrix(schema):
     rule = schema["rule"]
-    options = schema["options"]
 
-    correct = apply_rotation(
+    correct_value = apply_rotation(
         schema["matrix_template"][0][1],
         rule["step"]
     )
 
-    tiles = []
-    for v in options:
-        tiles.append({
-            "shape": schema["shape"],
-            "rotation": v,
-            "reflect": "none",
-            "fill": "outline",
-            "correct": v == correct
-        })
+    options = schema["options"][:]
+    random.shuffle(options)
 
-    random.shuffle(tiles)
+    correct_index = options.index(correct_value)
 
     return {
+        "pattern_id": schema["id"],
         "question_type": "MATRIX",
-        "patterns": tiles,
+        "prompt": {
+            "shape": schema["shape"],
+            "matrix": schema["matrix_template"],
+        },
+        "options": [
+            {
+                "shape": schema["shape"],
+                "rotation": v,
+                "reflect": "none",
+                "fill": "outline",
+            }
+            for v in options
+        ],
+        "correct_index": correct_index,
         "explanation": f"The shape rotates by {rule['step']}° across the row."
     }
