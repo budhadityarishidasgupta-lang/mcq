@@ -1,147 +1,234 @@
-import random
-import streamlit as st
-import streamlit.components.v1 as components
+# nvr_proto/render_svg.py
+import math
+from typing import Optional, List, Any, Dict
 
-from nvr_proto.db import init_nvr_tables
-from nvr_proto.generator import load_patterns, generate_from_pattern
-from nvr_proto.render_svg import render_question_svg
 
-# -------------------------------------------------
-# Page setup
-# -------------------------------------------------
-st.set_page_config(page_title="NVR Prototype", layout="centered")
-st.title("🧠 NVR Prototype – Pattern Reasoning")
+# =========================
+# Core SVG helpers
+# =========================
+def _svg_wrap(inner: str, w: int = 920, h: int = 420) -> str:
+    return f"""
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 {w} {h}"
+     width="100%"
+     height="auto"
+     preserveAspectRatio="xMidYMid meet">
+  <rect x="0" y="0" width="{w}" height="{h}" rx="18" fill="#0f1117"/>
+  {inner}
+</svg>
+""".strip()
 
-init_nvr_tables()
 
-# -------------------------------------------------
-# Global styles
-# -------------------------------------------------
-st.markdown(
+def _tile(
+    x: int,
+    y: int,
+    w: int,
+    h: int,
+    inner: str,
+    selected: bool = False,
+) -> str:
+    stroke = "#58a6ff" if selected else "rgba(255,255,255,.18)"
+    stroke_w = 4 if selected else 2
+    fill = "#1f2937" if selected else "#161b22"
+    return f"""
+<g>
+  <rect x="{x}" y="{y}" width="{w}" height="{h}" rx="16"
+        fill="{fill}" stroke="{stroke}" stroke-width="{stroke_w}"/>
+  {inner}
+</g>
+""".strip()
+
+
+def _text(x: Any, y: Any, s: str, size: int = 18, color: str = "#e6edf3", anchor: str = "start") -> str:
+    # x/y can be numbers or "50%" strings
+    return (
+        f'<text x="{x}" y="{y}" fill="{color}" font-size="{size}" '
+        f'font-family="Inter, system-ui, Arial" text-anchor="{anchor}">{s}</text>'
+    )
+
+
+def _rotate_point(px: float, py: float, cx: float, cy: float, deg: float):
+    ang = math.radians(deg)
+    dx, dy = px - cx, py - cy
+    rx = dx * math.cos(ang) - dy * math.sin(ang)
+    ry = dx * math.sin(ang) + dy * math.cos(ang)
+    return cx + rx, cy + ry
+
+
+def _triangle(cx: int, cy: int, size: int = 34, rot: int = 0,
+              fill: str = "none", stroke: str = "#e6edf3", stroke_w: int = 3) -> str:
+    pts = [
+        (cx, cy - size),
+        (cx - size, cy + size),
+        (cx + size, cy + size),
+    ]
+    pts2 = [_rotate_point(x, y, cx, cy, rot) for x, y in pts]
+    pts_str = " ".join([f"{x:.1f},{y:.1f}" for x, y in pts2])
+    return f'<polygon points="{pts_str}" fill="{fill}" stroke="{stroke}" stroke-width="{stroke_w}" />'
+
+
+def _circle(cx: int, cy: int, r: int = 20, fill: str = "none", stroke: str = "#e6edf3", stroke_w: int = 3) -> str:
+    return f'<circle cx="{cx}" cy="{cy}" r="{r}" fill="{fill}" stroke="{stroke}" stroke-width="{stroke_w}" />'
+
+
+def _square(cx: int, cy: int, size: int = 36, fill: str = "none", stroke: str = "#e6edf3", stroke_w: int = 3) -> str:
+    x = cx - size // 2
+    y = cy - size // 2
+    return f'<rect x="{x}" y="{y}" width="{size}" height="{size}" rx="8" fill="{fill}" stroke="{stroke}" stroke-width="{stroke_w}" />'
+
+
+def _lines(lines: List, ox: int, oy: int, stroke: str = "#e6edf3", stroke_w: int = 3) -> str:
+    out = ""
+    for (x1, y1), (x2, y2) in lines:
+        out += f'<line x1="{x1+ox}" y1="{y1+oy}" x2="{x2+ox}" y2="{y2+oy}" stroke="{stroke}" stroke-width="{stroke_w}" stroke-linecap="round" />'
+    return out
+
+
+def _render_option_tiles_rotations(options: List[int], y: int, selected_label: Optional[str], show_labels: bool = True) -> str:
+    labels = ["A", "B", "C", "D"]
+    tile_w, tile_h = 200, 140
+    gap = 24
+    x0 = 24
+    out = ""
+    sel = (selected_label or "").upper() if selected_label else None
+
+    for i in range(min(4, len(options))):
+        x = x0 + i * (tile_w + gap)
+        rot = int(options[i])
+        inner = ""
+        if show_labels:
+            inner += _text(x + 16, y + 34, labels[i], size=18, color="#9aa4b2")
+        inner += _triangle(x + tile_w // 2, y + 92, size=32, rot=rot)
+        out += _tile(x, y, tile_w, tile_h, inner, selected=(labels[i] == sel))
+    return out
+
+
+# =========================
+# Public API
+# =========================
+def render_question_svg(
+    question: Dict,
+    selected_option: Optional[str] = None,
+    show_options: bool = False,
+) -> str:
     """
-    <style>
-        .block-container { padding-top: 2rem; }
-        iframe { border: none; }
-        .option-btn button {
-            height: 4.2rem;
-            font-size: 1.4rem;
-            border-radius: 14px;
-        }
-        .submit-btn button {
-            height: 4.6rem;
-            font-size: 1.5rem;
-            font-weight: 700;
-            border-radius: 16px;
-        }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
+    Returns ONE SVG containing the question prompt (and optionally option tiles).
+    Contract expected from generator:
+      - question["question_type"] in {"SEQUENCE","ODD_ONE_OUT","MATRIX","STRUCTURE_MATCH","HIDDEN_SHAPE"}
+      - question["prompt"] dict
+      - question["options"] list (len 4)
+      - question["correct_index"] int
+    """
+    qtype = (question or {}).get("question_type")
+    prompt = (question or {}).get("prompt") or {}
+    options = (question or {}).get("options") or []
 
-# -------------------------------------------------
-# Sidebar identity (minimal)
-# -------------------------------------------------
-email = st.sidebar.text_input("Email")
-if not email:
-    st.stop()
+    if qtype == "SEQUENCE":
+        return _render_sequence(prompt, options, selected_option, show_options)
 
-# -------------------------------------------------
-# Helpers
-# -------------------------------------------------
-def extract_explanation(q: dict) -> str:
-    return q.get("explanation", "Apply the same rule shown in the question.")
+    if qtype == "ODD_ONE_OUT":
+        return _render_odd_one_out(prompt, options, selected_option, show_options)
 
-def generate_new_question():
-    patterns = load_patterns()
-    pattern = random.choice(patterns)
-    return generate_from_pattern(pattern)
+    if qtype == "MATRIX":
+        return _render_matrix(prompt, options, selected_option, show_options)
 
-# -------------------------------------------------
-# Session bootstrap
-# -------------------------------------------------
-if "question" not in st.session_state:
-    st.session_state.question = generate_new_question()
+    if qtype == "STRUCTURE_MATCH":
+        return _render_structure_match(prompt, selected_option, show_options)
 
-if "selected" not in st.session_state:
-    st.session_state.selected = None
+    if qtype == "HIDDEN_SHAPE":
+        return _render_hidden_shape(prompt, selected_option, show_options)
 
-if "submitted" not in st.session_state:
-    st.session_state.submitted = False
+    # fallback
+    inner = _text(24, 44, f"{qtype or 'QUESTION'}", size=22)
+    inner += _text(24, 78, "Renderer not implemented for this question_type.", size=16, color="#9aa4b2")
+    if show_options and options:
+        inner += _render_option_tiles_rotations(options, y=230, selected_label=selected_option)
+    return _svg_wrap(inner, 920, 420)
 
-question = st.session_state.question
 
-# -------------------------------------------------
-# SAFETY GUARD
-# -------------------------------------------------
-if not question or "question_type" not in question:
-    st.error("Invalid question schema")
-    st.stop()
+# =========================
+# Renderers
+# =========================
+def _render_sequence(prompt: Dict, options: List[int], selected: Optional[str], show_options: bool) -> str:
+    seq = prompt.get("sequence") or []
+    inner = _text(24, 44, "Sequence", size=22)
 
-# -------------------------------------------------
-# Render QUESTION (SVG ONLY — NO OPTIONS)
-# -------------------------------------------------
-labels = ["A", "B", "C", "D"]
+    x0 = 160
+    for i, rot in enumerate(seq[:4]):
+        inner += _triangle(x0 + i * 120, 140, size=34, rot=int(rot))
+    inner += _text(580, 148, "→", size=28, color="#9aa4b2")
+    inner += _text(620, 148, "?", size=22, color="#9aa4b2")
 
-selected_label = (
-    labels[st.session_state.selected]
-    if st.session_state.selected is not None
-    else None
-)
+    if show_options and options:
+        inner += _render_option_tiles_rotations(options, y=230, selected_label=selected)
+    return _svg_wrap(inner, 920, 420)
 
-svg = render_question_svg(
-    question,
-    selected_option=selected_label,
-    show_options=False,  # IMPORTANT: options rendered via Streamlit
-)
 
-_, center_col, _ = st.columns([1, 4, 1])
-with center_col:
-    components.html(svg, height=440)
+def _render_odd_one_out(prompt: Dict, options: List[int], selected: Optional[str], show_options: bool) -> str:
+    inner = _text(24, 44, "Odd one out", size=22)
+    # show 4 items as the "set"
+    for i, rot in enumerate(options[:4]):
+        inner += _triangle(170 + i * 170, 140, size=34, rot=int(rot))
 
-# -------------------------------------------------
-# Option buttons (interaction layer)
-# -------------------------------------------------
-st.markdown("### Choose the correct option")
+    if show_options and options:
+        inner += _render_option_tiles_rotations(options, y=230, selected_label=selected)
+    return _svg_wrap(inner, 920, 420)
 
-cols = st.columns(4)
-for i, col in enumerate(cols):
-    with col:
-        if st.button(
-            labels[i],
-            key=f"opt_{i}",
-            use_container_width=True,
-            disabled=st.session_state.submitted,
-        ):
-            st.session_state.selected = i
 
-# -------------------------------------------------
-# Submit
-# -------------------------------------------------
-st.markdown('<div class="submit-btn">', unsafe_allow_html=True)
-if st.button(
-    "Submit",
-    use_container_width=True,
-    disabled=st.session_state.selected is None or st.session_state.submitted,
-    type="primary",
-):
-    st.session_state.submitted = True
-st.markdown("</div>", unsafe_allow_html=True)
+def _render_matrix(prompt: Dict, options: List[int], selected: Optional[str], show_options: bool) -> str:
+    m = prompt.get("matrix") or []
+    inner = _text("50%", 40, "Matrix", size=22, anchor="middle")
 
-# -------------------------------------------------
-# Feedback + Next
-# -------------------------------------------------
-if st.session_state.submitted:
-    correct = question["correct_index"]
+    grid = 3
+    cell = 84
+    gap = 18
+    total = grid * cell + (grid - 1) * gap
 
-    if st.session_state.selected == correct:
-        st.success("✅ Correct")
-    else:
-        st.error("❌ Incorrect")
+    cx, cy = 460, 155
+    start_x = int(cx - total / 2)
+    start_y = int(cy - total / 2)
 
-    st.info(extract_explanation(question))
+    for r in range(min(3, len(m))):
+        row = m[r] or []
+        for c in range(min(3, len(row))):
+            v = row[c]
+            x = start_x + c * (cell + gap)
+            y = start_y + r * (cell + gap)
+            # cell outline
+            inner += f'<rect x="{x}" y="{y}" width="{cell}" height="{cell}" rx="12" fill="none" stroke="rgba(255,255,255,.16)" />'
+            if v is None:
+                inner += _text(x + cell / 2, y + cell / 2 + 8, "?", size=26, color="#9aa4b2", anchor="middle")
+            else:
+                inner += _triangle(x + cell // 2, y + cell // 2, size=30, rot=int(v))
 
-    if st.button("Next Question ▶️", use_container_width=True):
-        for k in ("question", "selected", "submitted"):
-            if k in st.session_state:
-                del st.session_state[k]
-        st.rerun()
+    if show_options and options:
+        inner += _render_option_tiles_rotations(options, y=250, selected_label=selected)
+    return _svg_wrap(inner, 920, 440)
+
+
+def _render_structure_match(prompt: Dict, selected: Optional[str], show_options: bool) -> str:
+    # prompt is whatever generator gives; we just show a clear placeholder stem
+    inner = _text(24, 44, "Structure match", size=22)
+    inner += _text(24, 78, "Match the same connection structure.", size=16, color="#9aa4b2")
+
+    # simple stem: circle -> square -> circle
+    inner += _circle(260, 170, r=18)
+    inner += _square(360, 170, size=38)
+    inner += _circle(460, 170, r=18)
+    inner += '<line x1="278" y1="170" x2="340" y2="170" stroke="#e6edf3" stroke-width="3" stroke-linecap="round"/>'
+    inner += '<line x1="380" y1="170" x2="442" y2="170" stroke="#e6edf3" stroke-width="3" stroke-linecap="round"/>'
+
+    # options are complex structures; for now we display prompt only (no options in SVG)
+    # Streamlit will show A/B/C/D buttons.
+    return _svg_wrap(inner, 920, 380)
+
+
+def _render_hidden_shape(prompt: Dict, selected: Optional[str], show_options: bool) -> str:
+    inner = _text(24, 44, "Hidden shape", size=22)
+    inner += _text(24, 78, "Find the option that contains the target lines.", size=16, color="#9aa4b2")
+
+    # draw a small target "L" on the left as stem
+    target = prompt.get("target") or [((0, 0), (40, 0)), ((0, 0), (0, 40))]
+    inner += _tile(80, 120, 180, 180, _lines(target, ox=120, oy=160), selected=False)
+
+    return _svg_wrap(inner, 920, 380)
