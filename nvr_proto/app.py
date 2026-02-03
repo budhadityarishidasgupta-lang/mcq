@@ -2,6 +2,9 @@ import random
 import streamlit as st
 import streamlit.components.v1 as components
 
+from nvr_proto.generator import generate_question
+from nvr_proto.ui.pattern_grid import render_pattern_tile
+
 from nvr_proto.db import init_nvr_tables
 from nvr_proto.generator import generate_from_pattern, load_patterns
 from nvr_proto.render_svg import render_question_svg
