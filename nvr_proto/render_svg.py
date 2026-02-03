@@ -258,7 +258,12 @@ def _tile(
     """
 
 
-def render_question_svg(question: dict, selected_option: Optional[str] = None) -> str:
+def render_question_svg(
+    question: dict,
+    selected_option: Optional[str] = None,
+    show_options: bool = True,
+) -> str:
+
     """
     Universal SVG renderer for schema-driven questions.
     Returns a single SVG string containing prompt + option tiles.
@@ -268,7 +273,7 @@ def render_question_svg(question: dict, selected_option: Optional[str] = None) -
     options = question.get("options", [])
 
     if qtype == "SEQUENCE":
-        return _render_sequence(prompt, options, selected_option)
+        return _render_sequence(prompt, options, selected_option, show_options)
 
     if qtype == "ODD_ONE_OUT":
         return _render_odd_one_out(prompt, options, selected_option)
@@ -280,7 +285,13 @@ def render_question_svg(question: dict, selected_option: Optional[str] = None) -
     return _render_fallback(prompt, options, title=qtype or "QUESTION", selected_option=selected_option)
 
 
-def _render_sequence(prompt: dict, options: list, selected_option: Optional[str] = None) -> str:
+def _render_sequence(
+    prompt: dict,
+    options: list,
+    selected_option: Optional[str] = None,
+    show_options: bool = True,
+) -> str:
+
     # prompt: {"shape": "...", "sequence": [0,90,180]}
     seq = prompt.get("sequence", [])
     inner = '<text x="32" y="44" fill="#e6edf3" font-size="22" font-family="Inter,Arial">Sequence</text>'
