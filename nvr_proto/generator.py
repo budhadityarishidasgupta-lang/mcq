@@ -61,7 +61,9 @@ def _sequence(schema):
     correct_index = options.index(correct_value)
 
     return {
-        "pattern_id": schema["id"],
+        "pattern_id": schema.get("id")
+            or schema.get("pattern_id")
+            or f"{schema['question_type'].lower()}-auto",
         "question_type": "SEQUENCE",
         "prompt": {
             "shape": schema["shape"],
@@ -91,7 +93,9 @@ def _odd_one_out(schema):
     correct_index = values.index(schema["odd_value"])
 
     return {
-        "pattern_id": schema["id"],
+        "pattern_id": schema.get("id")
+            or schema.get("pattern_id")
+            or f"{schema['question_type'].lower()}-auto",
         "question_type": "ODD_ONE_OUT",
         "prompt": {
             "shape": schema["shape"],
@@ -124,7 +128,9 @@ def _matrix(schema):
     correct_index = options.index(correct_value)
 
     return {
-        "pattern_id": schema["id"],
+        "pattern_id": schema.get("id")
+            or schema.get("pattern_id")
+            or f"{schema['question_type'].lower()}-auto",
         "question_type": "MATRIX",
         "prompt": {
             "shape": schema["shape"],
