@@ -25,136 +25,31 @@
 
     *{box-sizing:border-box}
 
-    body{
-      margin:0;
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-      background: radial-gradient(1200px 800px at 50% 0%, #101827 0%, var(--bg) 55%, #070a0f 100%);
-      color:var(--text);
-      min-height:100vh;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      padding:24px;
-    }
-
-    .app{ width:min(980px,100%); }
-
-    .header{
-      display:flex;
-      justify-content:space-between;
-      margin-bottom:18px;
-    }
-
-    .title{ font-size:20px; }
-    .sub{ font-size:13px; color:var(--muted); }
-
-    .panel{
-      background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
-      border:1px solid var(--stroke);
-      border-radius:20px;
-      padding:24px;
-      box-shadow:0 20px 60px rgba(0,0,0,.35);
-    }
-
-    .row,.grid{
-      display:flex;
-      gap:var(--gap);
-      justify-content:center;
-      flex-wrap:wrap;
-      padding:10px 0;
-    }
-
-    .divider{
-      height:1px;
-      background:rgba(255,255,255,.08);
-      margin:16px 0;
-    }
-
-    .prompt{
-      text-align:center;
-      font-size:14px;
-      color:var(--muted);
-      margin:10px 0 6px;
-    }
-
-    .tile{
-      width:var(--tileSize);
-      height:var(--tileSize);
-      border:1px solid var(--stroke);
-      border-radius:var(--radius);
-      display:grid;
-      place-items:center;
-      cursor:pointer;
-      transition:.12s;
-      user-select:none;
-    }
-
-    .tile:hover{
-      border-color:var(--stroke2);
-      box-shadow:0 0 0 6px rgba(255,255,255,.03);
-      transform:translateY(-1px);
-    }
-
-    .tile.correct{
-      border-color:rgba(46,204,113,.9);
-      box-shadow:0 0 0 6px rgba(46,204,113,.10);
-    }
-
-    .tile.wrong{
-      border-color:rgba(255,77,79,.9);
-      box-shadow:0 0 0 6px rgba(255,77,79,.10);
-    }
-
-    svg{
-      width:var(--iconSize);
-      height:var(--iconSize);
-    }
-
-    @media (max-width:520px){
-      :root{
-        --tileSize:84px;
-        --iconSize:42px;
-        --gap:12px;
-      }
-    }
-  </style>
-</head>
-
-<body>
-<div class="app">
-  <div class="header">
-    <div>
-      <div class="title">Click the matching pattern</div>
-      <div class="sub">NVR prototype — patterns are the answers</div>
-    </div>
+    <body>
+  <div class="app">
+    <div class="header">
+      <div>
+        <div class="title">Find the correct pattern</div>
+        <div class="sub">Tap the pattern that completes the rule</div>
+      </div>
     <div class="sub" id="status">Ready</div>
   </div>
 
   <div class="panel">
     <div class="row" id="questionRow"></div>
-    <div class="divider"></div>
-    <div class="prompt">Tap the correct match</div>
-    <div class="grid" id="answerGrid"></div>
   </div>
 </div>
 
 <script>
 /* =====================================================
-   STEP 1 — LOCKED DATA CONTRACT
+   STEP 1 — LOCKED QUESTION DATA (CLICKABLE)
    ===================================================== */
 
-const questionPatterns = [
-  { id:"q1", shape:"triangle", rotation:0,   reflect:"none", fill:"outline" },
-  { id:"q2", shape:"triangle", rotation:180, reflect:"none", fill:"outline" },
-  { id:"q3", shape:"triangle", rotation:0,   reflect:"h",    fill:"outline" },
-  { id:"q4", shape:"triangle", rotation:90,  reflect:"none", fill:"outline" }
-];
-
-const answerPatterns = [
-  { id:"a1", shape:"triangle", rotation:0,   reflect:"none", fill:"outline", correct:false },
-  { id:"a2", shape:"triangle", rotation:180, reflect:"none", fill:"outline", correct:true  },
-  { id:"a3", shape:"triangle", rotation:90,  reflect:"none", fill:"outline", correct:false },
-  { id:"a4", shape:"triangle", rotation:0,   reflect:"h",    fill:"outline", correct:false }
+const patterns = [
+  { id:"p1", shape:"triangle", rotation:0,   reflect:"none", fill:"outline", correct:false },
+  { id:"p2", shape:"triangle", rotation:180, reflect:"none", fill:"outline", correct:true  },
+  { id:"p3", shape:"triangle", rotation:90,  reflect:"none", fill:"outline", correct:false },
+  { id:"p4", shape:"triangle", rotation:0,   reflect:"h",    fill:"outline", correct:false }
 ];
 
 /* =====================================================
@@ -163,7 +58,6 @@ const answerPatterns = [
 
 function renderPattern(p){
   const cx = 24, cy = 24;
-
   let tf = `translate(${cx},${cy}) rotate(${p.rotation || 0})`;
   if(p.reflect === "h") tf += " scale(-1,1)";
   if(p.reflect === "v") tf += " scale(1,-1)";
@@ -171,15 +65,10 @@ function renderPattern(p){
 
   let shape = "";
   switch(p.shape){
-    case "square":
-      shape = `<rect x="10" y="10" width="28" height="28"/>`; break;
-    case "circle":
-      shape = `<circle cx="24" cy="24" r="14"/>`; break;
-    case "arrow":
-      shape = `<polygon points="10,24 30,10 30,18 38,18 38,30 30,30 30,38"/>`; break;
-    case "triangle":
-    default:
-      shape = `<polygon points="24,6 42,40 6,40"/>`;
+    case "square": shape = `<rect x="10" y="10" width="28" height="28"/>`; break;
+    case "circle": shape = `<circle cx="24" cy="24" r="14"/>`; break;
+    case "arrow":  shape = `<polygon points="10,24 30,10 30,18 38,18 38,30 30,30 30,38"/>`; break;
+    default:       shape = `<polygon points="24,6 42,40 6,40"/>`;
   }
 
   const style =
@@ -189,58 +78,52 @@ function renderPattern(p){
 
   return `
     <svg viewBox="0 0 48 48">
-      <g transform="${tf}" ${style}>
-        ${shape}
-      </g>
+      <g transform="${tf}" ${style}>${shape}</g>
     </svg>`;
 }
 
 /* =====================================================
-   UI LOGIC
+   UI LOGIC — CLICKABLE QUESTION TILES
    ===================================================== */
 
-const qRow = document.getElementById("questionRow");
-const grid = document.getElementById("answerGrid");
+const row = document.getElementById("questionRow");
 const status = document.getElementById("status");
 let locked = false;
 
-function makeTile(container, pattern, onClick){
+function makeTile(p){
   const t = document.createElement("div");
   t.className = "tile";
-  t.innerHTML = renderPattern(pattern);
-  t.onclick = () => onClick && onClick(t, pattern);
-  container.appendChild(t);
+  t.innerHTML = renderPattern(p);
+
+  t.onclick = () => {
+    if(locked) return;
+    locked = true;
+
+    if(p.correct){
+      t.classList.add("correct");
+      status.textContent = "Correct ✓";
+    } else {
+      t.classList.add("wrong");
+      status.textContent = "Wrong ✕";
+      setTimeout(() => {
+        locked = false;
+        t.classList.remove("wrong");
+        status.textContent = "Try again";
+      }, 500);
+    }
+  };
+
+  row.appendChild(t);
 }
 
 function render(){
-  qRow.innerHTML = "";
-  grid.innerHTML = "";
+  row.innerHTML = "";
   locked = false;
   status.textContent = "Ready";
-
-  questionPatterns.forEach(p => makeTile(qRow, p, null));
-  answerPatterns.forEach(p => makeTile(grid, p, handleAnswer));
-}
-
-function handleAnswer(tile, pattern){
-  if(locked) return;
-  locked = true;
-
-  if(pattern.correct){
-    tile.classList.add("correct");
-    status.textContent = "Correct ✓";
-  } else {
-    tile.classList.add("wrong");
-    status.textContent = "Wrong ✕";
-    setTimeout(() => {
-      locked = false;
-      tile.classList.remove("wrong");
-      status.textContent = "Try again";
-    }, 500);
-  }
+  patterns.forEach(makeTile);
 }
 
 render();
 </script>
 </body>
-</html>
+
