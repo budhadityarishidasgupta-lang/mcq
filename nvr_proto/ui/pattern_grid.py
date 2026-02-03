@@ -1,42 +1,39 @@
-import streamlit.components.v1 as components
+import streamlit as st
 
 def render_pattern_tile(p, idx):
     size = 96
     icon = 48
 
     svg = f"""
-    <div style="
-        width:{size}px;
-        height:{size}px;
-        border-radius:16px;
-        border:1px solid rgba(255,255,255,0.2);
-        display:flex;
-        align-items:center;
-        justify-content:center;
-        cursor:pointer;
-    ">
-      <svg width="{icon}" height="{icon}" viewBox="0 0 48 48">
-        <g transform="translate(24,24) rotate({p['rotation']}) translate(-24,-24)">
-          {shape_svg(p['shape'], p.get('fill','outline'))}
-        </g>
-      </svg>
-    </div>
+    <svg width="{icon}" height="{icon}" viewBox="0 0 48 48">
+      <g transform="translate(24,24) rotate({p['rotation']}) translate(-24,-24)">
+        {shape_svg(p['shape'], p.get('fill', 'outline'))}
+      </g>
+    </svg>
     """
 
-    clicked = components.html(
+    clicked = st.button(
+        "",
+        key=f"pattern_{idx}",
+        help="Select pattern",
+    )
+
+    st.markdown(
         f"""
-        <script>
-          const el = document.currentScript.previousElementSibling;
-          el.onclick = () => {{
-            window.parent.postMessage({{clicked: "{idx}"}}, "*");
-          }};
-        </script>
-        {svg}
+        <div style="
+            margin-top:-80px;
+            pointer-events:none;
+            display:flex;
+            justify-content:center;
+        ">
+            {svg}
+        </div>
         """,
-        height=size + 10,
+        unsafe_allow_html=True,
     )
 
     return clicked, p["correct"]
+
 
 
 
