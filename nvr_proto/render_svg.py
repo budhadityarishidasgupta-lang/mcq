@@ -3,8 +3,8 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 from nvr_proto.db import init_nvr_tables
-
-
+from nvr_proto.generator import load_patterns, generate_from_pattern
+from nvr_proto.render_svg import render_question_svg
 
 # -------------------------------------------------
 # Page setup
@@ -49,17 +49,18 @@ if not email:
 # Helpers
 # -------------------------------------------------
 def extract_explanation(q: dict) -> str:
-    for key in ("explanation", "reason", "rule", "logic", "hint"):
-        if q.get(key):
-            return q[key]
-    return "Apply the same rule shown in the question."
+    return q.get("explanation", "Apply the same rule shown in the question.")
+
+def generate_new_question():
+    patterns = load_patterns()
+    pattern = random.choice(patterns)
+    return generate_from_pattern(pattern)
 
 # -------------------------------------------------
 # Session bootstrap
 # -------------------------------------------------
 if "question" not in st.session_state:
-    pattern = random.choice(load_patterns())
-    st.session_state.question = generate_from_pattern(pattern)
+    st.session_state.question = generate_new_question()
 
 if "selected" not in st.session_state:
     st.session_state.selected = None
@@ -77,7 +78,7 @@ if not question or "question_type" not in question:
     st.stop()
 
 # -------------------------------------------------
-# Render QUESTION (SVG — VISUAL ONLY)
+# Render QUESTION (SVG ONLY — NO OPTIONS)
 # -------------------------------------------------
 labels = ["A", "B", "C", "D"]
 
@@ -90,7 +91,7 @@ selected_label = (
 svg = render_question_svg(
     question,
     selected_option=selected_label,
-    show_options=False,  # IMPORTANT: options handled by Streamlit, not SVG
+    show_options=False,  # IMPORTANT: options rendered via Streamlit
 )
 
 _, center_col, _ = st.columns([1, 4, 1])
@@ -98,9 +99,9 @@ with center_col:
     components.html(svg, height=440)
 
 # -------------------------------------------------
-# Option buttons (ONLY interaction layer)
+# Option buttons (interaction layer)
 # -------------------------------------------------
-st.markdown("### Click the correct pattern")
+st.markdown("### Choose the correct option")
 
 cols = st.columns(4)
 for i, col in enumerate(cols):
@@ -127,7 +128,7 @@ if st.button(
 st.markdown("</div>", unsafe_allow_html=True)
 
 # -------------------------------------------------
-# Feedback
+# Feedback + Next
 # -------------------------------------------------
 if st.session_state.submitted:
     correct = question["correct_index"]
