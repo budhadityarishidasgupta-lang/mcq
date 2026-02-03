@@ -54,8 +54,90 @@ def extract_explanation(q: dict) -> str:
 
 
 def new_question() -> dict:
-    # single source of truth: generator.generate_question()
-    return generate_question()
+    return normalize_question(generate_question())
+    
+def normalize_question(q: dict) -> dict:
+    """
+    Accepts BOTH schemas:
+    - Canonical: {"question_type","prompt","options","correct_index",...}
+    - Legacy:   {"type","shape", ...}
+    Returns canonical.
+    """
+    if not isinstance(q, dict):
+        return {}
+
+    # already canonical
+    if "question_type" in q and "prompt" in q and "options" in q and "correct_index" in q:
+        return q
+
+    # legacy
+    if "type" not in q:
+        return {}
+
+    t = q.get("type")
+    shape = q.get("shape", "triangle")
+    options = q.get("options", [])
+    correct_index = q.get("correct_index", None)
+    explanation = q.get("explanation", "Apply the same rule shown in the question.")
+
+    if t == "sequence":
+        prompt = {"shape": shape, "sequence": q.get("sequence", [])}
+        return {
+            "pattern_id": q.get("pattern_id", "legacy-sequence"),
+            "question_type": "SEQUENCE",
+            "prompt": prompt,
+            "options": options,
+            "correct_index": int(correct_index) if correct_index is not None else 0,
+            "explanation": explanation,
+        }
+
+    if t == "odd_one_out":
+        prompt = {"shape": shape}
+        return {
+            "pattern_id": q.get("pattern_id", "legacy-odd"),
+            "question_type": "ODD_ONE_OUT",
+            "prompt": prompt,
+            "options": options,
+            "correct_index": int(correct_index) if correct_index is not None else 0,
+            "explanation": explanation,
+        }
+
+    if t == "matrix":
+        prompt = {"shape": shape, "matrix": q.get("matrix", [])}
+        return {
+            "pattern_id": q.get("pattern_id", "legacy-matrix"),
+            "question_type": "MATRIX",
+            "prompt": prompt,
+            "options": options,
+            "correct_index": int(correct_index) if correct_index is not None else 0,
+            "explanation": explanation,
+        }
+
+    if t == "structure_match":
+        # renderer shows a generic stem; prompt holds legacy payload
+        return {
+            "pattern_id": q.get("pattern_id", "legacy-structure"),
+            "question_type": "STRUCTURE_MATCH",
+            "prompt": q,  # keep full legacy object
+            "options": options,
+            "correct_index": int(correct_index) if correct_index is not None else 0,
+            "explanation": explanation,
+        }
+
+    if t == "hidden_shape":
+        return {
+            "pattern_id": q.get("pattern_id", "legacy-hidden"),
+            "question_type": "HIDDEN_SHAPE",
+            "prompt": {"target": q.get("target", [])},
+            "options": options,
+            "correct_index": int(correct_index) if correct_index is not None else 0,
+            "explanation": explanation,
+        }
+
+    return {}
+
+
+
 
 
 # -----------------------------
