@@ -1,38 +1,68 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Pattern Click Grid Prototype</title>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Pattern Click Grid Prototype</title>
 
-  <style>
-    :root{
-      --bg:#0b0f14;
-      --panel:#0f1520;
-      --tile:#111a26;
-      --text:#e6edf6;
-      --muted:#9aa7b5;
-      --stroke:rgba(255,255,255,.12);
-      --stroke2:rgba(255,255,255,.22);
-      --ok:#2ecc71;
-      --bad:#ff4d4f;
+<style>
+:root{
+  --bg:#0b0f14;
+  --panel:#0f1520;
+  --tile:#111a26;
+  --text:#e6edf6;
+  --muted:#9aa7b5;
+  --stroke:rgba(255,255,255,.12);
+  --stroke2:rgba(255,255,255,.22);
+  --ok:#2ecc71;
+  --bad:#ff4d4f;
+  --tileSize:96px;
+  --iconSize:48px;
+  --gap:16px;
+  --radius:16px;
+}
 
-      --tileSize:96px;
-      --iconSize:48px;
-      --gap:16px;
-      --radius:16px;
-    }
+*{box-sizing:border-box}
 
-    *{box-sizing:border-box}
+body{
+  margin:0;
+  background:#0b0f14;
+  color:var(--text);
+  font-family:system-ui,Arial;
+  display:flex;
+  justify-content:center;
+  padding:24px;
+}
 
-    <body>
-  <div class="app">
-    <div class="header">
-      <div>
-        <div class="title">Find the correct pattern</div>
-        <div class="sub">Tap the pattern that completes the rule</div>
-      </div>
-    <div class="sub" id="status">Ready</div>
+.app{width:900px}
+.header{display:flex;justify-content:space-between;margin-bottom:12px}
+.panel{padding:24px;border:1px solid var(--stroke);border-radius:20px}
+.row{display:flex;gap:var(--gap);justify-content:center;flex-wrap:wrap}
+
+.tile{
+  width:var(--tileSize);
+  height:var(--tileSize);
+  border:1px solid var(--stroke);
+  border-radius:var(--radius);
+  display:grid;
+  place-items:center;
+  cursor:pointer;
+}
+.tile.correct{border-color:var(--ok)}
+.tile.wrong{border-color:var(--bad)}
+
+svg{width:var(--iconSize);height:var(--iconSize)}
+</style>
+</head>
+
+<body>
+<div class="app">
+  <div class="header">
+    <div>
+      <strong>Find the correct pattern</strong><br/>
+      <small>Tap the pattern that completes the rule</small>
+    </div>
+    <small id="status">Ready</small>
   </div>
 
   <div class="panel">
@@ -41,89 +71,50 @@
 </div>
 
 <script>
-/* =====================================================
-   STEP 1 — LOCKED QUESTION DATA (CLICKABLE)
-   ===================================================== */
-
 const patterns = [
-  { id:"p1", shape:"triangle", rotation:0,   reflect:"none", fill:"outline", correct:false },
-  { id:"p2", shape:"triangle", rotation:180, reflect:"none", fill:"outline", correct:true  },
-  { id:"p3", shape:"triangle", rotation:90,  reflect:"none", fill:"outline", correct:false },
-  { id:"p4", shape:"triangle", rotation:0,   reflect:"h",    fill:"outline", correct:false }
+  {shape:"triangle",rotation:0,correct:false},
+  {shape:"triangle",rotation:180,correct:true},
+  {shape:"triangle",rotation:90,correct:false},
+  {shape:"triangle",rotation:0,reflect:"h",correct:false}
 ];
-
-/* =====================================================
-   STEP 2 — GENERIC NVR PATTERN RENDERER
-   ===================================================== */
-
-function renderPattern(p){
-  const cx = 24, cy = 24;
-  let tf = `translate(${cx},${cy}) rotate(${p.rotation || 0})`;
-  if(p.reflect === "h") tf += " scale(-1,1)";
-  if(p.reflect === "v") tf += " scale(1,-1)";
-  tf += ` translate(-${cx},-${cy})`;
-
-  let shape = "";
-  switch(p.shape){
-    case "square": shape = `<rect x="10" y="10" width="28" height="28"/>`; break;
-    case "circle": shape = `<circle cx="24" cy="24" r="14"/>`; break;
-    case "arrow":  shape = `<polygon points="10,24 30,10 30,18 38,18 38,30 30,30 30,38"/>`; break;
-    default:       shape = `<polygon points="24,6 42,40 6,40"/>`;
-  }
-
-  const style =
-    p.fill === "outline"
-      ? `fill="none" stroke="#fff" stroke-width="3"`
-      : `fill="#fff"`;
-
-  return `
-    <svg viewBox="0 0 48 48">
-      <g transform="${tf}" ${style}>${shape}</g>
-    </svg>`;
-}
-
-/* =====================================================
-   UI LOGIC — CLICKABLE QUESTION TILES
-   ===================================================== */
 
 const row = document.getElementById("questionRow");
 const status = document.getElementById("status");
-let locked = false;
 
-function makeTile(p){
-  const t = document.createElement("div");
-  t.className = "tile";
-  t.innerHTML = renderPattern(p);
-
-  t.onclick = () => {
-    if(locked) return;
-    locked = true;
-
-    if(p.correct){
-      t.classList.add("correct");
-      status.textContent = "Correct ✓";
-    } else {
-      t.classList.add("wrong");
-      status.textContent = "Wrong ✕";
-      setTimeout(() => {
-        locked = false;
-        t.classList.remove("wrong");
-        status.textContent = "Try again";
-      }, 500);
-    }
-  };
-
-  row.appendChild(t);
+function renderPattern(p){
+  const tf = `translate(24,24) rotate(${p.rotation||0}) ${p.reflect==="h"?"scale(-1,1)":""} translate(-24,-24)`;
+  return `
+    <svg viewBox="0 0 48 48">
+      <g transform="${tf}" fill="none" stroke="#fff" stroke-width="3">
+        <polygon points="24,6 42,40 6,40"/>
+      </g>
+    </svg>`;
 }
 
 function render(){
-  row.innerHTML = "";
-  locked = false;
-  status.textContent = "Ready";
-  patterns.forEach(makeTile);
+  row.innerHTML="";
+  status.textContent="Ready";
+
+  patterns.forEach(p=>{
+    const t=document.createElement("div");
+    t.className="tile";
+    t.innerHTML=renderPattern(p);
+    t.tabIndex=0;
+    t.onclick=()=>{
+      [...row.children].forEach(x=>x.classList.remove("correct","wrong"));
+      if(p.correct){
+        t.classList.add("correct");
+        status.textContent="Correct ✓";
+      }else{
+        t.classList.add("wrong");
+        status.textContent="Try again";
+      }
+    };
+    row.appendChild(t);
+  });
 }
 
 render();
 </script>
 </body>
-
+</html>
