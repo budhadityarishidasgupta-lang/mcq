@@ -3,7 +3,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 from nvr_proto.db import init_nvr_tables
-from nvr_proto.generator import generate_from_pattern, load_patterns
+from nvr_proto.generator import generate_question
 from nvr_proto.render_svg import render_question_svg  # must support show_options True/False
 
 # -------------------------------------------------
@@ -56,7 +56,7 @@ def extract_explanation(q):
     return "Explanation not available yet for this pattern."
 
 def new_question():
-    pattern = random.choice(load_patterns())
+    st.session_state.question = generate_question()
     return generate_from_pattern(pattern)
 
 # -------------------------------------------------
