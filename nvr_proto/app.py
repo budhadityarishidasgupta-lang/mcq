@@ -78,34 +78,50 @@ if "last_result" not in st.session_state:
 question = st.session_state.current_question
 
 # -------------------------------------------------
-# Render QUESTION ONLY (no options in SVG)
+# Render QUESTION WITH OPTIONS in SVG
 # -------------------------------------------------
-svg = render_question_svg(question, show_options=False)
+labels = ["A", "B", "C", "D"]
+selected_label = (
+    labels[st.session_state.selected]
+    if st.session_state.selected is not None
+    else None
+)
+svg = render_question_svg(
+    question,
+    selected_option=selected_label,
+    show_options=True,
+)
 
 _, center_col, _ = st.columns([1, 3, 1])
 with center_col:
     components.html(svg, height=460)
 
 # -------------------------------------------------
-# Option selection — tight 2×2 grid
+# Invisible click map for SVG options
 # -------------------------------------------------
-labels = ["A", "B", "C", "D"]
+st.markdown(
+    """
+    <style>
+    div[data-testid="stButton"] > button {
+        background: transparent;
+        border: none;
+        height: 140px;
+        margin-top: -160px;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
 
-row1 = st.columns(2, gap="small")
-row2 = st.columns(2, gap="small")
-
-option_cols = row1 + row2
-
-for idx, col in enumerate(option_cols):
-    is_selected = st.session_state.selected == idx
+click_cols = st.columns(4)
+for i, col in enumerate(click_cols):
     with col:
         if st.button(
-            labels[idx],
-            key=f"opt_{idx}",
-            type="primary" if is_selected else "secondary",
+            labels[i],
+            key=f"svg_opt_{i}",
             use_container_width=True,
         ):
-            st.session_state.selected = idx
+            st.session_state.selected = i
             st.rerun()
 
 # -------------------------------------------------
