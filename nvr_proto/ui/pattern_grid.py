@@ -1,24 +1,43 @@
-import streamlit as st
+import streamlit.components.v1 as components
 
 def render_pattern_tile(p, idx):
     size = 96
     icon = 48
 
     svg = f"""
-    <svg width="{icon}" height="{icon}" viewBox="0 0 48 48">
-      <g transform="translate(24,24) rotate({p['rotation']}) translate(-24,-24)">
-        {shape_svg(p['shape'], p.get('fill', 'outline'))}
-      </g>
-    </svg>
+    <div style="
+        width:{size}px;
+        height:{size}px;
+        border-radius:16px;
+        border:1px solid rgba(255,255,255,0.2);
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        cursor:pointer;
+    ">
+      <svg width="{icon}" height="{icon}" viewBox="0 0 48 48">
+        <g transform="translate(24,24) rotate({p['rotation']}) translate(-24,-24)">
+          {shape_svg(p['shape'], p.get('fill','outline'))}
+        </g>
+      </svg>
+    </div>
     """
 
-    clicked = st.button(
-        svg,
-        key=f"pattern_{idx}",
-        use_container_width=False,
+    clicked = components.html(
+        f"""
+        <script>
+          const el = document.currentScript.previousElementSibling;
+          el.onclick = () => {{
+            window.parent.postMessage({{clicked: "{idx}"}}, "*");
+          }};
+        </script>
+        {svg}
+        """,
+        height=size + 10,
     )
 
     return clicked, p["correct"]
+
 
 
 def shape_svg(shape, fill):
