@@ -157,7 +157,6 @@ if "submitted" not in st.session_state:
 question = st.session_state.question
 
 stem_zone = st.container()
-options_zone = st.container()
 actions_zone = st.container()
 
 # -----------------------------
@@ -188,27 +187,17 @@ with stem_zone:
         show_options=False,
     )
 
+    stem_heights = {
+        "MATRIX": 420,
+        "SEQUENCE": 320,
+        "ODD_ONE_OUT": 300,
+    }
+    stem_height = stem_heights.get(question["question_type"], 360)
+
     components.html(
         prompt_svg,
-        height={
-            "MATRIX": 320,
-            "SEQUENCE": 220,
-            "ODD_ONE_OUT": 200,
-        }.get(question["question_type"], 260),
+        height=stem_height,
     )
-
-    st.markdown("</div>", unsafe_allow_html=True)
-
-with options_zone:
-    st.markdown('<div class="options-zone">', unsafe_allow_html=True)
-
-    options_svg = render_question_svg(
-        question,
-        selected_option=st.session_state.selected,
-        show_options=True,
-    )
-
-    components.html(options_svg, height=260)
 
     st.markdown("</div>", unsafe_allow_html=True)
 
