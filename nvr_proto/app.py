@@ -20,6 +20,12 @@ st.markdown(
     <style>
       .block-container { padding-top: 1.6rem; max-width: 980px; }
       iframe { border: none; }
+      .stem-zone {
+        margin-bottom: 2.8rem;
+      }
+      .options-zone {
+        margin-bottom: 2.8rem;
+      }
       .option-row button{
         height: 3.8rem;
         font-size: 1.2rem;
@@ -150,6 +156,9 @@ if "submitted" not in st.session_state:
 
 question = st.session_state.question
 
+stem_zone = st.container()
+options_zone = st.container()
+actions_zone = st.container()
 
 # -----------------------------
 # SAFETY GUARD
@@ -170,50 +179,66 @@ if len(question["options"]) != 4:
     st.error(f"Expected 4 options, got {len(question['options'])}")
     st.stop()
 
-labels = ["A", "B", "C", "D"]
+with stem_zone:
+    st.markdown('<div class="stem-zone">', unsafe_allow_html=True)
 
-# -----------------------------
-# 1) Render QUESTION prompt (SVG only)
-# -----------------------------
-prompt_svg = render_question_svg(
-    question,
-    selected_option=st.session_state.selected,
-    show_options=True,
-)
+    prompt_svg = render_question_svg(
+        question,
+        selected_option=None,
+        show_options=False,
+    )
 
-components.html(prompt_svg, height=420)
+    components.html(
+        prompt_svg,
+        height={
+            "MATRIX": 320,
+            "SEQUENCE": 220,
+            "ODD_ONE_OUT": 200,
+        }.get(question["question_type"], 260),
+    )
 
-st.markdown("### Choose the correct option")
+    st.markdown("</div>", unsafe_allow_html=True)
 
-# -----------------------------
-# 2) Option buttons (no auto-submit)
-# -----------------------------
-cols = st.columns(4)
-for i, col in enumerate(cols):
-    with col:
-        is_sel = (st.session_state.selected == i)
-        label = f"✅ {labels[i]}" if is_sel else labels[i]
-        if st.button(
-            label,
-            key=f"opt_{i}",
-            use_container_width=True,
-            disabled=st.session_state.submitted,
-        ):
-            st.session_state.selected = i
-            st.rerun()
+with options_zone:
+    st.markdown('<div class="options-zone">', unsafe_allow_html=True)
 
-# -----------------------------
-# 3) Submit
-# -----------------------------
-st.markdown('<div class="submit-row">', unsafe_allow_html=True)
-if st.button(
-    "Submit",
-    type="primary",
-    use_container_width=True,
-    disabled=(st.session_state.selected is None or st.session_state.submitted),
-):
-    st.session_state.submitted = True
-st.markdown("</div>", unsafe_allow_html=True)
+    options_svg = render_question_svg(
+        question,
+        selected_option=st.session_state.selected,
+        show_options=True,
+    )
+
+    components.html(options_svg, height=260)
+
+    st.markdown("</div>", unsafe_allow_html=True)
+
+with actions_zone:
+    st.markdown("### Choose the correct option")
+
+    labels = ["A", "B", "C", "D"]
+    cols = st.columns(4)
+
+    for i, col in enumerate(cols):
+        with col:
+            is_sel = (st.session_state.selected == i)
+            label = f"✅ {labels[i]}" if is_sel else labels[i]
+
+            if st.button(
+                label,
+                key=f"opt_{i}",
+                use_container_width=True,
+                disabled=st.session_state.submitted,
+            ):
+                st.session_state.selected = i
+                st.rerun()
+
+    if st.button(
+        "Submit",
+        type="primary",
+        use_container_width=True,
+        disabled=(st.session_state.selected is None or st.session_state.submitted),
+    ):
+        st.session_state.submitted = True
 
 # -----------------------------
 # 4) Feedback + next
