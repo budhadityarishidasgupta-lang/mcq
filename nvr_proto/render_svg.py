@@ -114,33 +114,32 @@ def render_question_svg(
     """
     Returns ONE SVG containing the question prompt (and optionally option tiles).
     Contract expected from generator:
-      - question["question_type"] in {"SEQUENCE","ODD_ONE_OUT","MATRIX","STRUCTURE_MATCH","HIDDEN_SHAPE"}
-      - question["prompt"] dict
+      - question["pattern_family"] in {"SEQUENCE","ODD_ONE_OUT","MATRIX","ANALOGY","COMPOSITION"}
+      - question["stem"] dict
       - question["options"] list (len 4)
       - question["correct_index"] int
     """
-    qtype = (question or {}).get("question_type")
-    prompt = (question or {}).get("prompt") or {}
-    options = (question or {}).get("options") or []
+    assert "pattern_family" in question
+    assert "stem" in question
+    assert len(question["options"]) == 4
+    assert isinstance(question["correct_index"], int)
 
-    if qtype == "SEQUENCE":
-        return _render_sequence(prompt, options, selected_option, show_options)
+    family = question["pattern_family"]
+    stem = question["stem"] or {}
+    options = question["options"] or []
 
-    if qtype == "ODD_ONE_OUT":
-        return _render_odd_one_out(prompt, options, selected_option, show_options)
+    if family == "SEQUENCE":
+        return _render_sequence(stem, options, selected_option, show_options)
 
-    if qtype == "MATRIX":
-        return _render_matrix(prompt, options, selected_option, show_options)
+    if family == "ODD_ONE_OUT":
+        return _render_odd_one_out(stem, options, selected_option, show_options)
 
-    if qtype == "STRUCTURE_MATCH":
-        return _render_structure_match(prompt, selected_option, show_options)
-
-    if qtype == "HIDDEN_SHAPE":
-        return _render_hidden_shape(prompt, selected_option, show_options)
+    if family == "MATRIX":
+        return _render_matrix(stem, options, selected_option, show_options)
 
     # fallback
-    inner = _text(24, 44, f"{qtype or 'QUESTION'}", size=22)
-    inner += _text(24, 78, "Renderer not implemented for this question_type.", size=16, color="#9aa4b2")
+    inner = _text(24, 44, f"{family or 'QUESTION'}", size=22)
+    inner += _text(24, 78, "Renderer not implemented for this pattern_family.", size=16, color="#9aa4b2")
     if show_options and options:
         inner += _render_option_tiles_rotations(options, y=230, selected_label=selected_option)
     return _svg_wrap(inner, 920, 420)
@@ -149,8 +148,8 @@ def render_question_svg(
 # =========================
 # Renderers
 # =========================
-def _render_sequence(prompt: Dict, options: List[Dict[str, Any]], selected: Optional[str], show_options: bool) -> str:
-    seq = prompt.get("sequence") or []
+def _render_sequence(stem: Dict, options: List[Dict[str, Any]], selected: Optional[str], show_options: bool) -> str:
+    seq = stem.get("items") or []
     inner = """
 <defs>
   <marker id="arrowhead" markerWidth="10" markerHeight="7"
@@ -170,9 +169,9 @@ def _render_sequence(prompt: Dict, options: List[Dict[str, Any]], selected: Opti
     start_x = 140
     gap = 140
     y = 140
-    for i, rot in enumerate(seq[:4]):
+    for i, item in enumerate(seq[:4]):
         x = start_x + i * gap
-        inner += _triangle(x, y, size=34, rot=rot)
+        inner += _triangle(x, y, size=34, rot=item.get("rotation", 0))
         if i < len(seq[:4]) - 1:
             inner += _arrow(x + 40, y, x + gap - 40)
 
@@ -187,20 +186,34 @@ def _render_sequence(prompt: Dict, options: List[Dict[str, Any]], selected: Opti
     return _svg_wrap(inner, 920, 420)
 
 
-def _render_odd_one_out(prompt: Dict, options: List[Dict[str, Any]], selected: Optional[str], show_options: bool) -> str:
+def _render_odd_one_out(stem: Dict, options: List[Dict[str, Any]], selected: Optional[str], show_options: bool) -> str:
     inner = _text(24, 44, "Odd one out", size=22)
-    # show 4 items as the "set"
-    for i, opt in enumerate(options[:4]):
-        rot = opt["rotation"]
-        inner += _triangle(170 + i * 170, 140, size=34, rot=rot)
+    items = stem.get("items") or []
+    labels = ["A", "B", "C", "D"]
+    selected_ref_index = None
+    if selected:
+        selected_label = selected.upper()
+        if selected_label in labels:
+            sel_index = labels.index(selected_label)
+            selected_ref_index = options[sel_index].get("ref_index", sel_index)
 
-    if show_options and options:
-        inner += _render_option_tiles_rotations(options, y=230, selected_label=selected)
+    tile_w, tile_h = 160, 140
+    gap = 24
+    x0 = 84
+    y = 110
+    for i, item in enumerate(items[:4]):
+        x = x0 + i * (tile_w + gap)
+        rot = item.get("rotation", 0)
+        inner_tile = ""
+        if show_options:
+            inner_tile += _text(x + 16, y + 34, labels[i], size=18, color="#9aa4b2")
+        inner_tile += _triangle(x + tile_w // 2, y + 92, size=32, rot=rot)
+        inner += _tile(x, y, tile_w, tile_h, inner_tile, selected=(selected_ref_index == i))
     return _svg_wrap(inner, 920, 420)
 
 
-def _render_matrix(prompt: Dict, options: List[Dict[str, Any]], selected: Optional[str], show_options: bool) -> str:
-    m = prompt.get("matrix") or []
+def _render_matrix(stem: Dict, options: List[Dict[str, Any]], selected: Optional[str], show_options: bool) -> str:
+    m = stem.get("items") or []
     inner = _text("50%", 40, "Matrix", size=22, anchor="middle")
 
     grid = 3
@@ -223,7 +236,7 @@ def _render_matrix(prompt: Dict, options: List[Dict[str, Any]], selected: Option
             if v is None:
                 inner += _text(x + cell / 2, y + cell / 2 + 8, "?", size=26, color="#9aa4b2", anchor="middle")
             else:
-                inner += _triangle(x + cell // 2, y + cell // 2, size=30, rot=int(v))
+                inner += _triangle(x + cell // 2, y + cell // 2, size=30, rot=int(v.get("rotation", 0)))
 
     if show_options and options:
         inner += _render_option_tiles_rotations(options, y=250, selected_label=selected)
