@@ -84,7 +84,7 @@ def _lines(lines: List, ox: int, oy: int, stroke: str = "#e6edf3", stroke_w: int
     return out
 
 
-def _render_option_tiles_rotations(options: List[int], y: int, selected_label: Optional[str], show_labels: bool = True) -> str:
+def _render_option_tiles_rotations(options: List[Dict[str, Any]], y: int, selected_label: Optional[str], show_labels: bool = True) -> str:
     labels = ["A", "B", "C", "D"]
     tile_w, tile_h = 200, 140
     gap = 24
@@ -94,7 +94,7 @@ def _render_option_tiles_rotations(options: List[int], y: int, selected_label: O
 
     for i in range(min(4, len(options))):
         x = x0 + i * (tile_w + gap)
-        rot = int(options[i])
+        rot = options[i]["rotation"]
         inner = ""
         if show_labels:
             inner += _text(x + 16, y + 34, labels[i], size=18, color="#9aa4b2")
@@ -149,13 +149,13 @@ def render_question_svg(
 # =========================
 # Renderers
 # =========================
-def _render_sequence(prompt: Dict, options: List[int], selected: Optional[str], show_options: bool) -> str:
+def _render_sequence(prompt: Dict, options: List[Dict[str, Any]], selected: Optional[str], show_options: bool) -> str:
     seq = prompt.get("sequence") or []
     inner = _text(24, 44, "Sequence", size=22)
 
     x0 = 160
     for i, rot in enumerate(seq[:4]):
-        inner += _triangle(x0 + i * 120, 140, size=34, rot=int(rot))
+        inner += _triangle(x0 + i * 120, 140, size=34, rot=rot)
     inner += _text(580, 148, "→", size=28, color="#9aa4b2")
     inner += _text(620, 148, "?", size=22, color="#9aa4b2")
 
@@ -164,18 +164,19 @@ def _render_sequence(prompt: Dict, options: List[int], selected: Optional[str], 
     return _svg_wrap(inner, 920, 420)
 
 
-def _render_odd_one_out(prompt: Dict, options: List[int], selected: Optional[str], show_options: bool) -> str:
+def _render_odd_one_out(prompt: Dict, options: List[Dict[str, Any]], selected: Optional[str], show_options: bool) -> str:
     inner = _text(24, 44, "Odd one out", size=22)
     # show 4 items as the "set"
-    for i, rot in enumerate(options[:4]):
-        inner += _triangle(170 + i * 170, 140, size=34, rot=int(rot))
+    for i, opt in enumerate(options[:4]):
+        rot = opt["rotation"]
+        inner += _triangle(170 + i * 170, 140, size=34, rot=rot)
 
     if show_options and options:
         inner += _render_option_tiles_rotations(options, y=230, selected_label=selected)
     return _svg_wrap(inner, 920, 420)
 
 
-def _render_matrix(prompt: Dict, options: List[int], selected: Optional[str], show_options: bool) -> str:
+def _render_matrix(prompt: Dict, options: List[Dict[str, Any]], selected: Optional[str], show_options: bool) -> str:
     m = prompt.get("matrix") or []
     inner = _text("50%", 40, "Matrix", size=22, anchor="middle")
 
