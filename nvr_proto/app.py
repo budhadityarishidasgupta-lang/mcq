@@ -177,8 +177,8 @@ labels = ["A", "B", "C", "D"]
 # -----------------------------
 prompt_svg = render_question_svg(
     question,
-    selected_option=None,
-    show_options=False,  # IMPORTANT: options are NOT inside SVG
+    selected_option=st.session_state.selected,
+    show_options=True,
 )
 
 components.html(prompt_svg, height=420)
