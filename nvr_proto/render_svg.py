@@ -151,13 +151,36 @@ def render_question_svg(
 # =========================
 def _render_sequence(prompt: Dict, options: List[Dict[str, Any]], selected: Optional[str], show_options: bool) -> str:
     seq = prompt.get("sequence") or []
-    inner = _text(24, 44, "Sequence", size=22)
+    inner = """
+<defs>
+  <marker id="arrowhead" markerWidth="10" markerHeight="7"
+          refX="10" refY="3.5" orient="auto">
+    <polygon points="0 0, 10 3.5, 0 7" fill="#6ea8fe"/>
+  </marker>
+</defs>
+""".strip()
+    inner += _text(24, 44, "Sequence", size=22)
 
-    x0 = 160
+    def _arrow(x1: int, y: int, x2: int) -> str:
+        return (
+            f'<line x1="{x1}" y1="{y}" x2="{x2}" y2="{y}" '
+            'stroke="#6ea8fe" stroke-width="2" marker-end="url(#arrowhead)" />'
+        )
+
+    start_x = 140
+    gap = 140
+    y = 140
     for i, rot in enumerate(seq[:4]):
-        inner += _triangle(x0 + i * 120, 140, size=34, rot=rot)
-    inner += _text(580, 148, "→", size=28, color="#9aa4b2")
-    inner += _text(620, 148, "?", size=22, color="#9aa4b2")
+        x = start_x + i * gap
+        inner += _triangle(x, y, size=34, rot=rot)
+        if i < len(seq[:4]) - 1:
+            inner += _arrow(x + 40, y, x + gap - 40)
+
+    qx = start_x + len(seq[:4]) * gap
+    inner += (
+        f'<text x="{qx}" y="{y + 12}" text-anchor="middle" '
+        'font-size="44" font-weight="600" fill="#6ea8fe">?</text>'
+    )
 
     if show_options and options:
         inner += _render_option_tiles_rotations(options, y=230, selected_label=selected)
