@@ -121,6 +121,8 @@ def render_question_svg(
     """
     assert "pattern_family" in question
     assert "stem" in question
+    assert "options" in question
+    assert isinstance(question["options"], list)
     assert len(question["options"]) == 4
     assert isinstance(question["correct_index"], int)
 

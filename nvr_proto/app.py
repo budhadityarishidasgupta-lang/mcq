@@ -65,16 +65,32 @@ def new_question() -> dict:
 def normalize_question(q: dict) -> dict:
     """
     Accepts BOTH schemas:
-    - Canonical: {"question_type","prompt","options","correct_index",...}
-    - Legacy:   {"type","shape", ...}
+    - Canonical: {"pattern_family","stem","options","correct_index",...}
+    - Legacy:   {"question_type","prompt","options","correct_index",...}
     Returns canonical.
     """
     if not isinstance(q, dict):
         return {}
 
     # already canonical
-    if "question_type" in q and "prompt" in q and "options" in q and "correct_index" in q:
+    if "pattern_family" in q and "stem" in q and "options" in q and "correct_index" in q:
         return q
+
+    # legacy canonical
+    if "question_type" in q and "prompt" in q and "options" in q and "correct_index" in q:
+        pattern_family = q["question_type"]
+        prompt = q.get("prompt") or {}
+        stem = {"type": pattern_family.lower()}
+        if isinstance(prompt, dict):
+            stem.update(prompt)
+        return {
+            "pattern_family": pattern_family,
+            "stem": stem,
+            "options": q.get("options", []),
+            "correct_index": int(q.get("correct_index", 0)),
+            "difficulty": q.get("difficulty", "easy"),
+            "explanation": q.get("explanation", "Apply the same rule shown in the question."),
+        }
 
     # legacy
     if "type" not in q:
@@ -87,56 +103,55 @@ def normalize_question(q: dict) -> dict:
     explanation = q.get("explanation", "Apply the same rule shown in the question.")
 
     if t == "sequence":
-        prompt = {"shape": shape, "sequence": q.get("sequence", [])}
+        stem = {"type": "sequence", "shape": shape, "sequence": q.get("sequence", [])}
         return {
-            "pattern_id": q.get("pattern_id", "legacy-sequence"),
-            "question_type": "SEQUENCE",
-            "prompt": prompt,
+            "pattern_family": "SEQUENCE",
+            "stem": stem,
             "options": options,
             "correct_index": int(correct_index) if correct_index is not None else 0,
+            "difficulty": "easy",
             "explanation": explanation,
         }
 
     if t == "odd_one_out":
-        prompt = {"shape": shape}
+        stem = {"type": "odd_one_out", "shape": shape}
         return {
-            "pattern_id": q.get("pattern_id", "legacy-odd"),
-            "question_type": "ODD_ONE_OUT",
-            "prompt": prompt,
+            "pattern_family": "ODD_ONE_OUT",
+            "stem": stem,
             "options": options,
             "correct_index": int(correct_index) if correct_index is not None else 0,
+            "difficulty": "easy",
             "explanation": explanation,
         }
 
     if t == "matrix":
-        prompt = {"shape": shape, "matrix": q.get("matrix", [])}
+        stem = {"type": "matrix", "shape": shape, "matrix": q.get("matrix", [])}
         return {
-            "pattern_id": q.get("pattern_id", "legacy-matrix"),
-            "question_type": "MATRIX",
-            "prompt": prompt,
+            "pattern_family": "MATRIX",
+            "stem": stem,
             "options": options,
             "correct_index": int(correct_index) if correct_index is not None else 0,
+            "difficulty": "easy",
             "explanation": explanation,
         }
 
     if t == "structure_match":
-        # renderer shows a generic stem; prompt holds legacy payload
         return {
-            "pattern_id": q.get("pattern_id", "legacy-structure"),
-            "question_type": "STRUCTURE_MATCH",
-            "prompt": q,  # keep full legacy object
+            "pattern_family": "ANALOGY",
+            "stem": {"type": "structure_match", **q},
             "options": options,
             "correct_index": int(correct_index) if correct_index is not None else 0,
+            "difficulty": "easy",
             "explanation": explanation,
         }
 
     if t == "hidden_shape":
         return {
-            "pattern_id": q.get("pattern_id", "legacy-hidden"),
-            "question_type": "HIDDEN_SHAPE",
-            "prompt": {"target": q.get("target", [])},
+            "pattern_family": "COMPOSITION",
+            "stem": {"type": "hidden_shape", "target": q.get("target", [])},
             "options": options,
             "correct_index": int(correct_index) if correct_index is not None else 0,
+            "difficulty": "easy",
             "explanation": explanation,
         }
 
@@ -164,7 +179,8 @@ actions_zone = st.container()
 # -----------------------------
 if (
     not isinstance(question, dict)
-    or "question_type" not in question
+    or "pattern_family" not in question
+    or "stem" not in question
     or "options" not in question
     or "correct_index" not in question
 ):
@@ -192,7 +208,7 @@ with stem_zone:
         "SEQUENCE": 320,
         "ODD_ONE_OUT": 300,
     }
-    stem_height = stem_heights.get(question["question_type"], 360)
+    stem_height = stem_heights.get(question["pattern_family"], 360)
 
     components.html(
         prompt_svg,
