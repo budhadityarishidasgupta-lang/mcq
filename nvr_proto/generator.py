@@ -4,6 +4,12 @@ from pathlib import Path
 
 PATTERNS_PATH = Path(__file__).with_name("patterns.json")
 FAMILIES = ["SEQUENCE", "ODD_ONE_OUT", "MATRIX", "ANALOGY"]
+SUPPORTED_PATTERN_FAMILIES = {
+    "SEQUENCE",
+    "ODD_ONE_OUT",
+    "MATRIX",
+    "ANALOGY",
+}
 
 # -------------------------------------------------
 # Utilities
@@ -142,19 +148,7 @@ def generate_question():
 
     for _ in range(20):
         qtype = random.choice(FAMILIES)
-
-        if qtype == "SEQUENCE":
-            schema = random.choice(patterns_by_type[qtype])
-            question = _sequence(schema)
-        elif qtype == "ODD_ONE_OUT":
-            schema = random.choice(patterns_by_type[qtype])
-            question = _odd_one_out(schema)
-        elif qtype == "MATRIX":
-            question = generate_matrix_question()
-        elif qtype == "ANALOGY":
-            question = generate_analogy_question()
-        else:
-            raise ValueError(f"Unsupported question_type: {qtype}")
+        question = generate_question_for_family(qtype, patterns_by_type)
 
         if question is None:
             continue
@@ -164,9 +158,58 @@ def generate_question():
         except AssertionError:
             continue
 
+        assert question["pattern_family"] in SUPPORTED_PATTERN_FAMILIES, (
+            f"Unsupported pattern family emitted: {question['pattern_family']}"
+        )
+
         return question
 
     raise RuntimeError("Failed to generate a valid question after multiple attempts.")
+
+
+def generate_question_for_family(qtype, patterns_by_type=None):
+    if qtype == "SEQUENCE":
+        if patterns_by_type is None:
+            patterns = load_patterns()
+            patterns_by_type = {}
+            for schema in patterns:
+                patterns_by_type.setdefault(schema["question_type"], []).append(schema)
+        schema = random.choice(patterns_by_type[qtype])
+        question = _sequence(schema)
+    elif qtype == "ODD_ONE_OUT":
+        if patterns_by_type is None:
+            patterns = load_patterns()
+            patterns_by_type = {}
+            for schema in patterns:
+                patterns_by_type.setdefault(schema["question_type"], []).append(schema)
+        schema = random.choice(patterns_by_type[qtype])
+        question = _odd_one_out(schema)
+    elif qtype == "MATRIX":
+        question = generate_matrix_question()
+    elif qtype == "ANALOGY":
+        question = generate_analogy_question()
+    else:
+        raise ValueError(f"Unsupported question_type: {qtype}")
+
+    if question is not None:
+        assert question["pattern_family"] in SUPPORTED_PATTERN_FAMILIES, (
+            f"Unsupported pattern family emitted: {question['pattern_family']}"
+        )
+
+    return question
+
+
+def _dev_pattern_smoke_test():
+    families = ["SEQUENCE", "ODD_ONE_OUT", "MATRIX", "ANALOGY"]
+    patterns = load_patterns()
+    patterns_by_type = {}
+    for schema in patterns:
+        patterns_by_type.setdefault(schema["question_type"], []).append(schema)
+
+    for family in families:
+        question = generate_question_for_family(family, patterns_by_type)
+        assert question is not None
+        assert question["pattern_family"] == family
 
 
 # -------------------------------------------------

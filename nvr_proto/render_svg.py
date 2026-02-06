@@ -2,6 +2,20 @@
 import math
 from typing import Optional, List, Any, Dict
 
+STEM_RENDERERS = {
+    "SEQUENCE",
+    "ODD_ONE_OUT",
+    "MATRIX",
+    "ANALOGY",
+}
+
+OPTION_RENDERERS = {
+    "SEQUENCE",
+    "ODD_ONE_OUT",
+    "MATRIX",
+    "ANALOGY",
+}
+
 
 # =========================
 # Core SVG helpers
@@ -127,6 +141,9 @@ def render_question_svg(
     assert isinstance(question["correct_index"], int)
 
     family = question["pattern_family"]
+    assert family in STEM_RENDERERS, (
+        f"No stem renderer implemented for pattern family: {family}"
+    )
     stem = question["stem"] or {}
     options = question["options"] or []
 
@@ -410,6 +427,9 @@ def render_option_svg(option: dict, pattern_family: str) -> str:
     Render a single option visual in isolation.
     This is used by the student UI for the visual option grid.
     """
+    assert pattern_family in OPTION_RENDERERS, (
+        f"No option renderer implemented for pattern family: {pattern_family}"
+    )
     if pattern_family == "SEQUENCE":
         return _render_sequence_option(option)
 
@@ -419,8 +439,6 @@ def render_option_svg(option: dict, pattern_family: str) -> str:
     if pattern_family == "ANALOGY":
         return _render_sequence_option(option)
 
-    if pattern_family == "COMPOSITION":
-        return _render_composite_option(option)
 
     if pattern_family == "ODD_ONE_OUT":
         return _render_odd_item(option)
