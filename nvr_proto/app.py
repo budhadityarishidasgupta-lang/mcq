@@ -10,7 +10,7 @@ from nvr_proto.render_svg import render_question_svg, render_option_svg
 # -----------------------------
 # Page setup
 # -----------------------------
-st.set_page_config(page_title="NVR Prototype", layout="centered")
+st.set_page_config(page_title="NVR Practice", layout="centered")
 st.title("🧠 NVR Prototype – Pattern Reasoning")
 
 init_nvr_tables()
@@ -172,9 +172,6 @@ if "submitted" not in st.session_state:
 
 question = st.session_state.question
 
-stem_zone = st.container()
-actions_zone = st.container()
-
 # -----------------------------
 # SAFETY GUARD
 # -----------------------------
@@ -195,31 +192,29 @@ if len(question["options"]) != 4:
     st.error(f"Expected 4 options, got {len(question['options'])}")
     st.stop()
 
-with stem_zone:
-    st.markdown('<div class="stem-zone">', unsafe_allow_html=True)
+stem_svg = render_question_svg(
+    question,
+    selected_option=None,
+    show_options=False,
+)
 
-    stem_svg = render_question_svg(
-        question,
-        selected_option=None,
-        show_options=False,
-    )
-
-    stem_heights = {
-        "MATRIX": 420,
-        "SEQUENCE": 320,
-        "ODD_ONE_OUT": 300,
-    }
-    stem_height = stem_heights.get(question["pattern_family"], 360)
-
+# ===============================
+# STEM SECTION
+# ===============================
+with st.container():
+    st.markdown("## Question")
     components.html(
         stem_svg,
-        height=stem_height,
+        height=240,
     )
 
-    st.markdown("</div>", unsafe_allow_html=True)
+st.markdown("---")
 
-with actions_zone:
-    st.markdown("### Choose the correct option")
+# ===============================
+# OPTIONS SECTION
+# ===============================
+with st.container():
+    st.markdown("## Choose the correct option")
 
     cols = st.columns(2)
 
@@ -229,27 +224,37 @@ with actions_zone:
 
             option_svg = render_option_svg(
                 opt,
-                question["pattern_family"]
+                question["pattern_family"],
             )
 
             border = "3px solid #22c55e" if is_selected else "2px solid #e5e7eb"
+            bg = "rgba(34,197,94,0.08)" if is_selected else "rgba(255,255,255,0.02)"
+            label = (
+                "<div style='font-size:12px;color:#22c55e;text-align:center;'>Selected</div>"
+                if is_selected else ""
+            )
 
             components.html(
                 f"""
                 <div style="
                     border: {border};
                     border-radius: 12px;
-                    padding: 8px;
-                    margin-bottom: 10px;
-                    background: rgba(255,255,255,0.02);
+                    padding: 10px;
+                    height: 190px;
+                    display: flex;
+                    flex-direction: column;
+                    justify-content: center;
+                    align-items: center;
+                    background: {bg};
+                    transition: border 0.15s ease;
                 ">
                     {option_svg}
+                    {label}
                 </div>
                 """,
-                height=180,
+                height=210,
             )
 
-            # Visual-first selection: small button under each option
             if st.button(
                 f"Select {['A','B','C','D'][i]}",
                 key=f"select_opt_{i}",
@@ -259,27 +264,37 @@ with actions_zone:
                 st.session_state.selected = i
                 st.rerun()
 
-    if st.button(
-        "Submit",
-        type="primary",
-        use_container_width=True,
-        disabled=(st.session_state.selected is None or st.session_state.submitted),
-    ):
-        st.session_state.submitted = True
+st.markdown("---")
+
+submit_disabled = (
+    st.session_state.selected is None
+    or st.session_state.submitted
+)
+
+if st.button(
+    "Submit",
+    disabled=submit_disabled,
+    use_container_width=True,
+):
+    st.session_state.submitted = True
+
+if st.session_state.selected is None:
+    st.caption("Select one option to continue.")
 
 # -----------------------------
 # 4) Feedback + next
 # -----------------------------
 if st.session_state.submitted:
-    correct = int(question["correct_index"])
-    if st.session_state.selected == correct:
-        st.success("✅ Correct")
-    else:
-        st.error("❌ Incorrect")
+    st.markdown("---")
+    with st.container():
+        if st.session_state.selected == question["correct_index"]:
+            st.success("Correct ✅")
+        else:
+            st.error("Not quite ❌")
 
-    st.info(extract_explanation(question))
+        st.caption(question["explanation"])
 
-    if st.button("Next Question ▶️", use_container_width=True):
+    if st.button("Next Question", use_container_width=True):
         st.session_state.question = new_question()
         st.session_state.selected = None
         st.session_state.submitted = False
