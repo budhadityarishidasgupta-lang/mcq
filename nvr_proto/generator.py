@@ -3,6 +3,7 @@ import random
 from pathlib import Path
 
 PATTERNS_PATH = Path(__file__).with_name("patterns.json")
+FAMILIES = ["SEQUENCE", "ODD_ONE_OUT", "MATRIX"]
 
 # -------------------------------------------------
 # Utilities
@@ -18,6 +19,13 @@ def _option_from_rotation(schema, rotation):
         "rotation": rotation,
         "reflect": "none",
         "fill": "outline",
+    }
+
+
+def _cell(rotation):
+    return {
+        "shape": "triangle",
+        "rotation": rotation,
     }
 
 
@@ -68,7 +76,7 @@ def validate_question(question):
                 matches += 1
         assert matches == 1
     elif family == "MATRIX":
-        matrix_items = question["stem"]["items"]
+        matrix_items = question["stem"].get("cells") or question["stem"]["items"]
         missing_row = None
         missing_col = None
         for r_index, row in enumerate(matrix_items):
@@ -120,17 +128,21 @@ def generate_question():
     """
 
     patterns = load_patterns()
+    patterns_by_type = {}
+    for schema in patterns:
+        patterns_by_type.setdefault(schema["question_type"], []).append(schema)
 
     for _ in range(20):
-        schema = random.choice(patterns)
-        qtype = schema["question_type"]
+        qtype = random.choice(FAMILIES)
 
         if qtype == "SEQUENCE":
+            schema = random.choice(patterns_by_type[qtype])
             question = _sequence(schema)
         elif qtype == "ODD_ONE_OUT":
+            schema = random.choice(patterns_by_type[qtype])
             question = _odd_one_out(schema)
         elif qtype == "MATRIX":
-            question = _matrix(schema)
+            question = generate_matrix_question()
         else:
             raise ValueError(f"Unsupported question_type: {qtype}")
 
@@ -264,3 +276,48 @@ def _matrix(schema):
         return None
 
     return None
+
+
+def generate_matrix_question():
+    """
+    Generate a 3x3 MATRIX question with one missing cell.
+    Rule: rotation across rows (+90° clockwise).
+    """
+    # base rotations for first row
+    row0 = [0, 90, None]
+    row1 = [270, 180, 270]
+    row2 = [0, 270, 0]
+
+    cells = [
+        [_cell(0), _cell(90), None],
+        [_cell(270), _cell(180), _cell(270)],
+        [_cell(0), _cell(270), _cell(0)],
+    ]
+
+    # correct answer for missing cell
+    correct = _cell(180)
+
+    # distractors (Step 3 compliant)
+    d_row_only = _cell(0)          # row-only distractor
+    d_col_only = _cell(90)         # column rule ok, row wrong
+    d_near_miss = _cell(270)       # looks right, violates both subtly
+
+    options = [correct, d_row_only, d_col_only, d_near_miss]
+    correct_index = 0
+
+    random.shuffle(options)
+    correct_index = options.index(correct)
+
+    return {
+        "pattern_family": "MATRIX",
+        "stem": {
+            "type": "matrix",
+            "grid_size": [3, 3],
+            "cells": cells,
+            "missing_cell": [0, 2],
+        },
+        "options": options,
+        "correct_index": correct_index,
+        "difficulty": "easy",
+        "explanation": "The shape rotates 90° clockwise across each row.",
+    }
