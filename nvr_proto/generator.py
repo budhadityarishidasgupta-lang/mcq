@@ -3,12 +3,13 @@ import random
 from pathlib import Path
 
 PATTERNS_PATH = Path(__file__).with_name("patterns.json")
-FAMILIES = ["SEQUENCE", "ODD_ONE_OUT", "MATRIX", "ANALOGY"]
+FAMILIES = ["SEQUENCE", "ODD_ONE_OUT", "MATRIX", "ANALOGY", "COMPOSITION"]
 SUPPORTED_PATTERN_FAMILIES = {
     "SEQUENCE",
     "ODD_ONE_OUT",
     "MATRIX",
     "ANALOGY",
+    "COMPOSITION",
 }
 
 # -------------------------------------------------
@@ -36,6 +37,13 @@ def _cell(rotation):
 
 
 def _rotation_key(option):
+    if option.get("type") == "composite":
+        items = option.get("items", [])
+        normalized_items = tuple(
+            (item.get("shape"), item.get("rotation"))
+            for item in items
+        )
+        return ("composite", normalized_items)
     if "ref_index" in option:
         return ("ref", option["ref_index"])
     return (
@@ -59,6 +67,18 @@ def _unique_options(options):
 def _exactly_one_correct(options, correct_rotation):
     matches = [opt for opt in options if opt.get("rotation") == correct_rotation]
     return len(matches) == 1
+
+
+def _exactly_one_composition_match(options, correct_items):
+    correct_key = tuple((item.get("shape"), item.get("rotation")) for item in correct_items)
+    matches = 0
+    for option in options:
+        if option.get("type") != "composite":
+            continue
+        option_key = tuple((item.get("shape"), item.get("rotation")) for item in option.get("items", []))
+        if option_key == correct_key:
+            matches += 1
+    return matches == 1
 
 
 def validate_question(question):
@@ -122,6 +142,12 @@ def validate_question(question):
         step = (b_rot - a_rot) % 360
         correct_rotation = apply_rotation(c_rot, step)
         assert _exactly_one_correct(question["options"], correct_rotation)
+    elif family == "COMPOSITION":
+        stem = question["stem"]
+        assert stem.get("operation") == "UNION"
+        assert isinstance(stem.get("inputs"), list)
+        assert len(stem["inputs"]) == 2
+        assert _exactly_one_composition_match(question["options"], stem["inputs"])
     else:
         raise AssertionError(f"Unknown pattern_family: {family}")
 
@@ -188,6 +214,8 @@ def generate_question_for_family(qtype, patterns_by_type=None):
         question = generate_matrix_question()
     elif qtype == "ANALOGY":
         question = generate_analogy_question()
+    elif qtype == "COMPOSITION":
+        question = generate_composition_question()
     else:
         raise ValueError(f"Unsupported question_type: {qtype}")
 
@@ -200,7 +228,7 @@ def generate_question_for_family(qtype, patterns_by_type=None):
 
 
 def _dev_pattern_smoke_test():
-    families = ["SEQUENCE", "ODD_ONE_OUT", "MATRIX", "ANALOGY"]
+    families = ["SEQUENCE", "ODD_ONE_OUT", "MATRIX", "ANALOGY", "COMPOSITION"]
     patterns = load_patterns()
     patterns_by_type = {}
     for schema in patterns:
@@ -409,4 +437,39 @@ def generate_analogy_question():
         "correct_index": correct_index,
         "difficulty": "easy",
         "explanation": "The triangle rotates 90° clockwise from A to B and from C to the answer.",
+    }
+
+
+def generate_composition_question():
+    """
+    Composition rule: UNION (overlay) of two inputs.
+    """
+    A = {"shape": "triangle", "rotation": 0}
+    B = {"shape": "triangle", "rotation": 180}
+
+    correct = {
+        "type": "composite",
+        "items": [A, B],
+    }
+
+    # Step-3 compliant distractors
+    d_missing = {"type": "composite", "items": [A]}
+    d_extra = {"type": "composite", "items": [A, B, A]}
+    d_wrong_op = {"type": "composite", "items": [B]}
+
+    options = [correct, d_missing, d_extra, d_wrong_op]
+    random.shuffle(options)
+    correct_index = options.index(correct)
+
+    return {
+        "pattern_family": "COMPOSITION",
+        "stem": {
+            "type": "composition",
+            "operation": "UNION",
+            "inputs": [A, B],
+        },
+        "options": options,
+        "correct_index": correct_index,
+        "difficulty": "easy",
+        "explanation": "The answer is the visual union (overlay) of both shapes.",
     }
