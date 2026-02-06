@@ -61,7 +61,29 @@ def extract_explanation(q: dict) -> str:
 
 def new_question() -> dict:
     return normalize_question(generate_question())
-    
+
+
+def render_single_option_svg(question: dict, option: dict) -> str:
+    """
+    Render a single option visual using the existing render_question_svg()
+    contract (no renderer API changes). We wrap the option in a minimal
+    question envelope with one option.
+    """
+    q = {
+        "pattern_family": question["pattern_family"],
+        "stem": question.get("stem"),
+        "options": [option],
+        "correct_index": 0,
+        "difficulty": question.get("difficulty", "easy"),
+        "explanation": "",
+    }
+    return render_question_svg(
+        q,
+        selected_option=None,
+        show_options=True,
+    )
+
+
 def normalize_question(q: dict) -> dict:
     """
     Accepts BOTH schemas:
@@ -221,33 +243,34 @@ with actions_zone:
     st.markdown("### Choose the correct option")
 
     cols = st.columns(2)
-    for i in range(4):
+
+    for i, opt in enumerate(question["options"]):
         with cols[i % 2]:
-            is_selected = st.session_state.selected == i
+            is_selected = (st.session_state.selected == i)
 
-            option_svg = render_question_svg(
-                question,
-                selected_option=i if is_selected else None,
-                show_options=True,
-                option_index=i,
-            )
+            option_svg = render_single_option_svg(question, opt)
 
-            container_style = (
-                "border: 3px solid #4CAF50;" if is_selected else "border: 2px solid #ddd;"
-            )
+            border = "3px solid #22c55e" if is_selected else "2px solid #e5e7eb"
 
             components.html(
                 f"""
-                <div style="{container_style} border-radius: 8px; padding: 6px;">
+                <div style="
+                    border: {border};
+                    border-radius: 12px;
+                    padding: 8px;
+                    margin-bottom: 10px;
+                    background: rgba(255,255,255,0.02);
+                ">
                     {option_svg}
                 </div>
                 """,
                 height=180,
             )
 
+            # Visual-first selection: small button under each option
             if st.button(
-                f"Select Option {i + 1}",
-                key=f"select_{i}",
+                f"Select {['A','B','C','D'][i]}",
+                key=f"select_opt_{i}",
                 use_container_width=True,
                 disabled=st.session_state.submitted,
             ):
