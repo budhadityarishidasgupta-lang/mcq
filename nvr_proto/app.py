@@ -197,7 +197,7 @@ if len(question["options"]) != 4:
 with stem_zone:
     st.markdown('<div class="stem-zone">', unsafe_allow_html=True)
 
-    prompt_svg = render_question_svg(
+    stem_svg = render_question_svg(
         question,
         selected_option=None,
         show_options=False,
@@ -211,7 +211,7 @@ with stem_zone:
     stem_height = stem_heights.get(question["pattern_family"], 360)
 
     components.html(
-        prompt_svg,
+        stem_svg,
         height=stem_height,
     )
 
@@ -220,17 +220,34 @@ with stem_zone:
 with actions_zone:
     st.markdown("### Choose the correct option")
 
-    labels = ["A", "B", "C", "D"]
-    cols = st.columns(4)
+    cols = st.columns(2)
+    for i in range(4):
+        with cols[i % 2]:
+            is_selected = st.session_state.selected == i
 
-    for i, col in enumerate(cols):
-        with col:
-            is_sel = (st.session_state.selected == i)
-            label = f"✅ {labels[i]}" if is_sel else labels[i]
+            option_svg = render_question_svg(
+                question,
+                selected_option=i if is_selected else None,
+                show_options=True,
+                option_index=i,
+            )
+
+            container_style = (
+                "border: 3px solid #4CAF50;" if is_selected else "border: 2px solid #ddd;"
+            )
+
+            components.html(
+                f"""
+                <div style="{container_style} border-radius: 8px; padding: 6px;">
+                    {option_svg}
+                </div>
+                """,
+                height=180,
+            )
 
             if st.button(
-                label,
-                key=f"opt_{i}",
+                f"Select Option {i + 1}",
+                key=f"select_{i}",
                 use_container_width=True,
                 disabled=st.session_state.submitted,
             ):
