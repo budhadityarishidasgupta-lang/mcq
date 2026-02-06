@@ -2,6 +2,9 @@
 import math
 from typing import Optional, List, Any, Dict
 
+STROKE_COLOR = "#E5E7EB"   # light grey, visible on dark background
+STROKE_WIDTH = 2
+
 STEM_RENDERERS = {
     "SEQUENCE",
     "ODD_ONE_OUT",
@@ -73,16 +76,14 @@ def _rotate_point(px: float, py: float, cx: float, cy: float, deg: float):
 
 def _triangle(x: int, y: int, size: int = 34, rotation: int = 0, opacity: float = 1.0) -> str:
     half = size / 2
-    pts = [
-        (x, y - half),
-        (x - half, y + half),
-        (x + half, y + half),
-    ]
-    pts2 = [_rotate_point(px, py, x, y, rotation) for px, py in pts]
-    pts_str = " ".join([f"{px:.1f},{py:.1f}" for px, py in pts2])
+    points = f"{x},{y-half} {x-half},{y+half} {x+half},{y+half}"
     return (
-        f'<polygon points="{pts_str}" fill="none" stroke="black" '
-        f'stroke-width="2" opacity="{opacity}" />'
+        f'<polygon points="{points}" '
+        f'transform="rotate({rotation},{x},{y})" '
+        f'fill="none" '
+        f'stroke="{STROKE_COLOR}" '
+        f'stroke-width="{STROKE_WIDTH}" '
+        f'opacity="{opacity}" />'
     )
 
 
@@ -91,7 +92,10 @@ def _square(x: int, y: int, size: int, rotation: int = 0, opacity: float = 1.0) 
     return (
         f'<rect x="{x-half}" y="{y-half}" width="{size}" height="{size}" '
         f'transform="rotate({rotation},{x},{y})" '
-        f'fill="none" stroke="black" stroke-width="2" opacity="{opacity}" />'
+        f'fill="none" '
+        f'stroke="{STROKE_COLOR}" '
+        f'stroke-width="{STROKE_WIDTH}" '
+        f'opacity="{opacity}" />'
     )
 
 
@@ -99,7 +103,10 @@ def _circle(x: int, y: int, size: int, opacity: float = 1.0) -> str:
     r = size / 2
     return (
         f'<circle cx="{x}" cy="{y}" r="{r}" '
-        f'fill="none" stroke="black" stroke-width="2" opacity="{opacity}" />'
+        f'fill="none" '
+        f'stroke="{STROKE_COLOR}" '
+        f'stroke-width="{STROKE_WIDTH}" '
+        f'opacity="{opacity}" />'
     )
 
 
