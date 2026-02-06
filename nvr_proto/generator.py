@@ -4,6 +4,14 @@ from pathlib import Path
 
 PATTERNS_PATH = Path(__file__).with_name("patterns.json")
 FAMILIES = ["SEQUENCE", "ODD_ONE_OUT", "MATRIX", "ANALOGY", "COMPOSITION"]
+DIFFICULTY_LEVELS = ["easy", "medium", "hard"]
+PATTERN_WEIGHTS = {
+    "SEQUENCE": 3,
+    "ODD_ONE_OUT": 2,
+    "MATRIX": 3,
+    "ANALOGY": 2,
+    "COMPOSITION": 1,
+}
 SUPPORTED_PATTERN_FAMILIES = {
     "SEQUENCE",
     "ODD_ONE_OUT",
@@ -62,6 +70,10 @@ def _unique_options(options):
             return False
         seen.add(key)
     return True
+
+
+def all_options_unique(options):
+    return len({str(option) for option in options}) == 4
 
 
 def _exactly_one_correct(options, correct_rotation):
@@ -152,6 +164,13 @@ def validate_question(question):
         raise AssertionError(f"Unknown pattern_family: {family}")
 
 
+def validate_question_quality(question):
+    assert len(question["options"]) == 4
+    assert 0 <= question["correct_index"] <= 3
+    assert question["options"].count(question["options"][question["correct_index"]]) == 1
+    assert all_options_unique(question["options"])
+
+
 def load_patterns():
     with PATTERNS_PATH.open("r", encoding="utf-8") as file:
         return json.load(file)
@@ -161,11 +180,13 @@ def load_patterns():
 # PUBLIC API (USED BY UI / STREAMLIT)
 # -------------------------------------------------
 
-def generate_question():
+def generate_question(difficulty="easy"):
     """
     Canonical NVR generator output.
     Returns ONLY clickable patterns (no MCQ).
     """
+
+    assert difficulty in DIFFICULTY_LEVELS
 
     patterns = load_patterns()
     patterns_by_type = {}
@@ -173,13 +194,18 @@ def generate_question():
         patterns_by_type.setdefault(schema["question_type"], []).append(schema)
 
     for _ in range(20):
-        qtype = random.choice(FAMILIES)
-        question = generate_question_for_family(qtype, patterns_by_type)
+        qtype = _weighted_pattern_choice(FAMILIES)
+        question = generate_question_for_family(
+            qtype,
+            patterns_by_type=patterns_by_type,
+            difficulty=difficulty,
+        )
 
         if question is None:
             continue
 
         try:
+            validate_question_quality(question)
             validate_question(question)
         except AssertionError:
             continue
@@ -193,7 +219,9 @@ def generate_question():
     raise RuntimeError("Failed to generate a valid question after multiple attempts.")
 
 
-def generate_question_for_family(qtype, patterns_by_type=None):
+def generate_question_for_family(qtype, patterns_by_type=None, difficulty="easy"):
+    assert difficulty in DIFFICULTY_LEVELS
+
     if qtype == "SEQUENCE":
         if patterns_by_type is None:
             patterns = load_patterns()
@@ -201,7 +229,7 @@ def generate_question_for_family(qtype, patterns_by_type=None):
             for schema in patterns:
                 patterns_by_type.setdefault(schema["question_type"], []).append(schema)
         schema = random.choice(patterns_by_type[qtype])
-        question = _sequence(schema)
+        question = _sequence(schema, difficulty=difficulty)
     elif qtype == "ODD_ONE_OUT":
         if patterns_by_type is None:
             patterns = load_patterns()
@@ -209,17 +237,18 @@ def generate_question_for_family(qtype, patterns_by_type=None):
             for schema in patterns:
                 patterns_by_type.setdefault(schema["question_type"], []).append(schema)
         schema = random.choice(patterns_by_type[qtype])
-        question = _odd_one_out(schema)
+        question = _odd_one_out(schema, difficulty=difficulty)
     elif qtype == "MATRIX":
-        question = generate_matrix_question()
+        question = generate_matrix_question(difficulty=difficulty)
     elif qtype == "ANALOGY":
-        question = generate_analogy_question()
+        question = generate_analogy_question(difficulty=difficulty)
     elif qtype == "COMPOSITION":
-        question = generate_composition_question()
+        question = generate_composition_question(difficulty=difficulty)
     else:
         raise ValueError(f"Unsupported question_type: {qtype}")
 
     if question is not None:
+        validate_question_quality(question)
         assert question["pattern_family"] in SUPPORTED_PATTERN_FAMILIES, (
             f"Unsupported pattern family emitted: {question['pattern_family']}"
         )
@@ -227,7 +256,7 @@ def generate_question_for_family(qtype, patterns_by_type=None):
     return question
 
 
-def _dev_pattern_smoke_test():
+def dev_smoke_test():
     families = ["SEQUENCE", "ODD_ONE_OUT", "MATRIX", "ANALOGY", "COMPOSITION"]
     patterns = load_patterns()
     patterns_by_type = {}
@@ -235,18 +264,29 @@ def _dev_pattern_smoke_test():
         patterns_by_type.setdefault(schema["question_type"], []).append(schema)
 
     for family in families:
-        question = generate_question_for_family(family, patterns_by_type)
+        question = generate_question_for_family(family, patterns_by_type, difficulty="easy")
         assert question is not None
         assert question["pattern_family"] == family
+
+
+def generate_question_for_mix(allowed_families, difficulty="easy"):
+    family = _weighted_pattern_choice(allowed_families)
+    return generate_question_for_family(family, difficulty=difficulty)
+
+
+def _weighted_pattern_choice(families):
+    weights = [PATTERN_WEIGHTS.get(family, 1) for family in families]
+    return random.choices(families, weights=weights, k=1)[0]
 
 
 # -------------------------------------------------
 # QUESTION BUILDERS (UI CONTRACT)
 # -------------------------------------------------
 
-def _sequence(schema):
+def _sequence(schema, difficulty="easy"):
     start = schema["start_values"]
-    step = schema["transformations"][0]["step"]
+    base_step = schema["transformations"][0]["step"]
+    step = base_step if difficulty != "hard" else max(45, base_step // 2)
 
     correct_value = apply_rotation(start[-1], step)
 
@@ -298,12 +338,12 @@ def _sequence(schema):
         },
         "options": options,
         "correct_index": correct_index,
-        "difficulty": "easy",
+        "difficulty": difficulty,
         "explanation": f"The shape rotates by {step}° each step."
     }
 
 
-def _odd_one_out(schema):
+def _odd_one_out(schema, difficulty="easy"):
     values = (
         [schema["common_value"]] * 3
         + [schema["odd_value"]]
@@ -333,7 +373,7 @@ def _odd_one_out(schema):
         },
         "options": [{"ref_index": i} for i in range(4)],
         "correct_index": correct_index,
-        "difficulty": "easy",
+        "difficulty": difficulty,
         "explanation": "Three patterns follow the same rule. One breaks it."
     }
 
@@ -359,32 +399,41 @@ def _matrix(schema):
     return None
 
 
-def generate_matrix_question():
+def generate_matrix_question(difficulty="easy"):
     """
     Generate a 3x3 MATRIX question with one missing cell.
     Rule: rotation across rows (+90° clockwise).
     """
-    # base rotations for first row
-    row0 = [0, 90, None]
-    row1 = [270, 180, 270]
-    row2 = [0, 270, 0]
+    assert difficulty in DIFFICULTY_LEVELS
 
-    cells = [
-        [_cell(0), _cell(90), None],
-        [_cell(270), _cell(180), _cell(270)],
-        [_cell(0), _cell(270), _cell(0)],
-    ]
+    if difficulty == "hard":
+        cells = [
+            [_cell(0), _cell(90), None],
+            [_cell(270), _cell(180), _cell(270)],
+            [_cell(0), _cell(270), _cell(0)],
+        ]
 
-    # correct answer for missing cell
-    correct = _cell(180)
+        correct = _cell(180)
+        d_row_only = _cell(0)
+        d_col_only = _cell(90)
+        d_near_miss = _cell(270)
+        explanation = "The shape follows both a row rotation rule and a column rotation rule."
+    else:
+        cells = [
+            [_cell(0), _cell(90), None],
+            [_cell(90), _cell(180), _cell(270)],
+            [_cell(180), _cell(270), _cell(0)],
+        ]
 
-    # distractors (Step 3 compliant)
-    d_row_only = _cell(0)          # row-only distractor
-    d_col_only = _cell(90)         # column rule ok, row wrong
-    d_near_miss = _cell(270)       # looks right, violates both subtly
+        correct = _cell(180)
+        d_row_only = _cell(270)
+        d_col_only = _cell(90)
+        d_near_miss = _cell(0)
+        explanation = "The shape rotates 90° clockwise across each row."
 
     options = [correct, d_row_only, d_col_only, d_near_miss]
-    correct_index = 0
+    if not all_options_unique(options):
+        return None
 
     random.shuffle(options)
     correct_index = options.index(correct)
@@ -399,12 +448,12 @@ def generate_matrix_question():
         },
         "options": options,
         "correct_index": correct_index,
-        "difficulty": "easy",
-        "explanation": "The shape rotates 90° clockwise across each row.",
+        "difficulty": difficulty,
+        "explanation": explanation,
     }
 
 
-def generate_analogy_question():
+def generate_analogy_question(difficulty="easy"):
     """
     A : B :: C : ?
     Rule: rotate +90° clockwise
@@ -435,12 +484,12 @@ def generate_analogy_question():
         },
         "options": options,
         "correct_index": correct_index,
-        "difficulty": "easy",
+        "difficulty": difficulty,
         "explanation": "The triangle rotates 90° clockwise from A to B and from C to the answer.",
     }
 
 
-def generate_composition_question():
+def generate_composition_question(difficulty="easy"):
     """
     Composition rule: UNION (overlay) of two inputs.
     """
@@ -470,6 +519,6 @@ def generate_composition_question():
         },
         "options": options,
         "correct_index": correct_index,
-        "difficulty": "easy",
+        "difficulty": difficulty,
         "explanation": "The answer is the visual union (overlay) of both shapes.",
     }
