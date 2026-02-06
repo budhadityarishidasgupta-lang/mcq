@@ -3,7 +3,7 @@ import random
 from pathlib import Path
 
 PATTERNS_PATH = Path(__file__).with_name("patterns.json")
-FAMILIES = ["SEQUENCE", "ODD_ONE_OUT", "MATRIX"]
+FAMILIES = ["SEQUENCE", "ODD_ONE_OUT", "MATRIX", "ANALOGY"]
 
 # -------------------------------------------------
 # Utilities
@@ -108,6 +108,14 @@ def validate_question(question):
         if row_based != column_based:
             assert False, "Matrix rules disagree"
         assert _exactly_one_correct(question["options"], row_based)
+    elif family == "ANALOGY":
+        stem = question["stem"]
+        a_rot = stem["A"]["rotation"]
+        b_rot = stem["B"]["rotation"]
+        c_rot = stem["C"]["rotation"]
+        step = (b_rot - a_rot) % 360
+        correct_rotation = apply_rotation(c_rot, step)
+        assert _exactly_one_correct(question["options"], correct_rotation)
     else:
         raise AssertionError(f"Unknown pattern_family: {family}")
 
@@ -143,6 +151,8 @@ def generate_question():
             question = _odd_one_out(schema)
         elif qtype == "MATRIX":
             question = generate_matrix_question()
+        elif qtype == "ANALOGY":
+            question = generate_analogy_question()
         else:
             raise ValueError(f"Unsupported question_type: {qtype}")
 
@@ -320,4 +330,40 @@ def generate_matrix_question():
         "correct_index": correct_index,
         "difficulty": "easy",
         "explanation": "The shape rotates 90° clockwise across each row.",
+    }
+
+
+def generate_analogy_question():
+    """
+    A : B :: C : ?
+    Rule: rotate +90° clockwise
+    """
+    A = {"shape": "triangle", "rotation": 0}
+    B = {"shape": "triangle", "rotation": 90}
+    C = {"shape": "triangle", "rotation": 180}
+
+    correct = {"shape": "triangle", "rotation": 270}
+
+    # Step-3 compliant distractors
+    d_wrong_dir = {"shape": "triangle", "rotation": 90}    # −90°
+    d_repeat = {"shape": "triangle", "rotation": 180}      # repeat C
+    d_step_error = {"shape": "triangle", "rotation": 0}    # wrong step
+
+    options = [correct, d_wrong_dir, d_repeat, d_step_error]
+    random.shuffle(options)
+    correct_index = options.index(correct)
+
+    return {
+        "pattern_family": "ANALOGY",
+        "stem": {
+            "type": "analogy",
+            "A": A,
+            "B": B,
+            "C": C,
+            "missing": True,
+        },
+        "options": options,
+        "correct_index": correct_index,
+        "difficulty": "easy",
+        "explanation": "The triangle rotates 90° clockwise from A to B and from C to the answer.",
     }

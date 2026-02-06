@@ -139,6 +139,9 @@ def render_question_svg(
     if family == "MATRIX":
         return _render_matrix_stem(question["stem"])
 
+    if family == "ANALOGY":
+        return _render_analogy_stem(question["stem"])
+
     # fallback
     inner = _text(24, 44, f"{family or 'QUESTION'}", size=22)
     inner += _text(24, 78, "Renderer not implemented for this pattern_family.", size=16, color="#9aa4b2")
@@ -287,6 +290,49 @@ def _render_matrix_stem(stem: dict) -> str:
     svg.append("</svg>")
     return "".join(svg)
 
+
+
+
+def _render_analogy_stem(stem: dict) -> str:
+    """
+    Render A → B :: C → ?
+    """
+    cell_size = 80
+    gap = 40
+    width = 4 * cell_size + 3 * gap
+    height = cell_size + 40
+
+    svg = [
+        f'<svg width="{width}" height="{height}" viewBox="0 0 {width} {height}">'
+    ]
+
+    items = [stem["A"], stem["B"], stem["C"], None]
+
+    for i, item in enumerate(items):
+        x = i * (cell_size + gap) + cell_size // 2
+        y = height // 2
+
+        if item is None:
+            svg.append(
+                f'<text x="{x}" y="{y+10}" font-size="36" text-anchor="middle" fill="#4DA3FF">?</text>'
+            )
+        else:
+            svg.append(
+                _triangle(
+                    cx=x,
+                    cy=y,
+                    size=30,
+                    rot=item.get("rotation", 0),
+                )
+            )
+
+        if i in (0, 2):
+            svg.append(
+                f'<text x="{x + cell_size}" y="{y+10}" font-size="24" fill="#888">→</text>'
+            )
+
+    svg.append("</svg>")
+    return "".join(svg)
 
 def _render_structure_match(prompt: Dict, selected: Optional[str], show_options: bool) -> str:
     # prompt is whatever generator gives; we just show a clear placeholder stem
