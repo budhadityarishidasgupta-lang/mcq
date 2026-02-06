@@ -6,6 +6,8 @@ from nvr_proto.db import init_nvr_tables
 from nvr_proto.generator import generate_question
 from nvr_proto.render_svg import render_question_svg, render_option_svg
 
+CURRENT_DIFFICULTY = "easy"
+
 
 # -----------------------------
 # Page setup
@@ -60,7 +62,7 @@ def extract_explanation(q: dict) -> str:
 
 
 def new_question() -> dict:
-    return normalize_question(generate_question())
+    return normalize_question(generate_question(difficulty=CURRENT_DIFFICULTY))
 
 
 def normalize_question(q: dict) -> dict:
