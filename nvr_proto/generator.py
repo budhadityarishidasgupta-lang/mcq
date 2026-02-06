@@ -5,6 +5,7 @@ from pathlib import Path
 PATTERNS_PATH = Path(__file__).with_name("patterns.json")
 FAMILIES = ["SEQUENCE", "ODD_ONE_OUT", "MATRIX", "ANALOGY", "COMPOSITION"]
 DIFFICULTY_LEVELS = ["easy", "medium", "hard"]
+SHAPES = ["triangle", "square", "circle"]
 PATTERN_WEIGHTS = {
     "easy": {
         "SEQUENCE": 4,
@@ -44,6 +45,29 @@ def apply_rotation(value, step):
     return (value + step) % 360
 
 
+def choose_single_shape(difficulty):
+    """
+    Single shape per question.
+    """
+    if difficulty == "easy":
+        return "triangle"
+    return random.choice(SHAPES)
+
+
+def choose_shape_pair(difficulty):
+    """
+    Two shapes max, only for medium+ difficulty.
+    """
+    if difficulty == "easy":
+        return ["triangle"]
+    return random.sample(SHAPES, 2)
+
+
+def validate_shape_usage(items):
+    shapes = {item["shape"] for item in items if isinstance(item, dict) and "shape" in item}
+    assert len(shapes) <= 2, "Too many shapes in one question"
+
+
 def _option_from_rotation(schema, rotation):
     return {
         "shape": schema["shape"],
@@ -53,9 +77,9 @@ def _option_from_rotation(schema, rotation):
     }
 
 
-def _cell(rotation):
+def _cell(rotation, shape):
     return {
-        "shape": "triangle",
+        "shape": shape,
         "rotation": rotation,
     }
 
@@ -360,18 +384,21 @@ def _sequence(schema, difficulty="easy"):
         return None
 
     options_rotations = [correct_value] + distractors
-    options = [_option_from_rotation(schema, rot) for rot in options_rotations]
+    shape = choose_single_shape(difficulty)
+    options = [{**_option_from_rotation(schema, rot), "shape": shape} for rot in options_rotations]
+    validate_shape_usage(options)
     correct_index = 0
 
     visible_items = [
         {
-            "shape": schema["shape"],
+            "shape": shape,
             "rotation": v,
             "reflect": "none",
             "fill": "outline",
         }
         for v in start
     ]
+    validate_shape_usage(visible_items)
 
     return {
         "pattern_family": "SEQUENCE",
@@ -394,22 +421,27 @@ def _odd_one_out(schema, difficulty="easy"):
         common = {"rotation": 90, "fill": "outline"}
         odd = {"rotation": 180, "fill": "outline"}
     elif difficulty == "medium":
-        invariant = "fill"
+        invariant = "shape"
         common = {"rotation": 90, "fill": "outline"}
-        odd = {"rotation": 90, "fill": "solid"}
+        odd = {"rotation": 90, "fill": "outline"}
     else:
-        invariant = "parity"
+        invariant = "shape"
         common = {"rotation": 0, "fill": "outline"}
-        odd = {"rotation": 45, "fill": "outline"}
+        odd = {"rotation": 0, "fill": "outline"}
+
+    shapes = choose_shape_pair(difficulty)
+    common_shape = shapes[0]
+    odd_shape = shapes[1] if len(shapes) > 1 else shapes[0]
 
     stem_items = [
-        {"shape": schema["shape"], "reflect": "none", **common}
+        {"shape": common_shape, "reflect": "none", **common}
         for _ in range(3)
     ]
-    stem_items.append({"shape": schema["shape"], "reflect": "none", **odd})
+    stem_items.append({"shape": odd_shape, "reflect": "none", **odd})
     random.shuffle(stem_items)
+    validate_shape_usage(stem_items)
 
-    correct_index = stem_items.index(next(item for item in stem_items if item["fill"] == odd["fill"] and item["rotation"] == odd["rotation"]))
+    correct_index = stem_items.index(next(item for item in stem_items if item["shape"] == odd_shape and item["fill"] == odd["fill"] and item["rotation"] == odd["rotation"]))
 
     return {
         "pattern_family": "ODD_ONE_OUT",
@@ -452,35 +484,37 @@ def generate_matrix_question(difficulty="easy"):
     """
     assert difficulty in DIFFICULTY_LEVELS
 
+    shape = choose_single_shape(difficulty)
+
     if difficulty == "easy":
         rules = ["row_only"]
         cells = [
-            [_cell(0), _cell(90), None],
-            [_cell(90), _cell(180), _cell(270)],
-            [_cell(180), _cell(270), _cell(0)],
+            [_cell(0, shape), _cell(90, shape), None],
+            [_cell(90, shape), _cell(180, shape), _cell(270, shape)],
+            [_cell(180, shape), _cell(270, shape), _cell(0, shape)],
         ]
-        correct = _cell(180)
-        distractors = [_cell(270), _cell(90), _cell(0)]
+        correct = _cell(180, shape)
+        distractors = [_cell(270, shape), _cell(90, shape), _cell(0, shape)]
         explanation = "The shape rotates 90° clockwise across each row."
     elif difficulty == "medium":
         rules = ["row", "column"]
         cells = [
-            [_cell(0), _cell(90), None],
-            [_cell(270), _cell(180), _cell(270)],
-            [_cell(0), _cell(270), _cell(0)],
+            [_cell(0, shape), _cell(90, shape), None],
+            [_cell(270, shape), _cell(180, shape), _cell(270, shape)],
+            [_cell(0, shape), _cell(270, shape), _cell(0, shape)],
         ]
-        correct = _cell(180)
-        distractors = [_cell(0), _cell(90), _cell(315)]
+        correct = _cell(180, shape)
+        distractors = [_cell(0, shape), _cell(90, shape), _cell(315, shape)]
         explanation = "Use both row and column rotation rules to find the missing cell."
     else:
         rules = ["row", "column"]
         cells = [
-            [_cell(0), _cell(90), None],
-            [_cell(270), _cell(180), _cell(270)],
-            [_cell(0), _cell(270), _cell(0)],
+            [_cell(0, shape), _cell(90, shape), None],
+            [_cell(270, shape), _cell(180, shape), _cell(270, shape)],
+            [_cell(0, shape), _cell(270, shape), _cell(0, shape)],
         ]
-        correct = _cell(180)
-        distractors = [_cell(135), _cell(225), _cell(270)]
+        correct = _cell(180, shape)
+        distractors = [_cell(135, shape), _cell(225, shape), _cell(270, shape)]
         explanation = "Both row and column rules apply; distractors are near-miss rotations."
 
     options = [correct] + distractors
@@ -489,6 +523,10 @@ def generate_matrix_question(difficulty="easy"):
 
     random.shuffle(options)
     correct_index = options.index(correct)
+
+    stem_items = [cell for row in cells for cell in row if cell is not None]
+    validate_shape_usage(stem_items)
+    validate_shape_usage(options)
 
     return {
         "pattern_family": "MATRIX",
@@ -511,41 +549,45 @@ def generate_analogy_question(difficulty="easy"):
     A : B :: C : ?
     Rule: rotate +90° clockwise
     """
+    shape = choose_single_shape(difficulty)
+
     if difficulty == "easy":
         transformation = "rotate_90"
-        A = {"shape": "triangle", "rotation": 0}
-        B = {"shape": "triangle", "rotation": 90}
-        C = {"shape": "triangle", "rotation": 180}
-        correct = {"shape": "triangle", "rotation": 270}
+        A = {"shape": shape, "rotation": 0}
+        B = {"shape": shape, "rotation": 90}
+        C = {"shape": shape, "rotation": 180}
+        correct = {"shape": shape, "rotation": 270}
         distractors = [
-            {"shape": "triangle", "rotation": 90},
-            {"shape": "triangle", "rotation": 180},
-            {"shape": "triangle", "rotation": 0},
+            {"shape": shape, "rotation": 90},
+            {"shape": shape, "rotation": 180},
+            {"shape": shape, "rotation": 0},
         ]
     elif difficulty == "medium":
         transformation = "rotate_90"
-        A = {"shape": "triangle", "rotation": 45}
-        B = {"shape": "triangle", "rotation": 135}
-        C = {"shape": "triangle", "rotation": 225}
-        correct = {"shape": "triangle", "rotation": 315}
+        A = {"shape": shape, "rotation": 45}
+        B = {"shape": shape, "rotation": 135}
+        C = {"shape": shape, "rotation": 225}
+        correct = {"shape": shape, "rotation": 315}
         distractors = [
-            {"shape": "triangle", "rotation": 135},
-            {"shape": "triangle", "rotation": 270},
-            {"shape": "triangle", "rotation": 225},
+            {"shape": shape, "rotation": 135},
+            {"shape": shape, "rotation": 270},
+            {"shape": shape, "rotation": 225},
         ]
     else:
         transformation = "rotate_45"
-        A = {"shape": "triangle", "rotation": 0}
-        B = {"shape": "triangle", "rotation": 45}
-        C = {"shape": "triangle", "rotation": 180}
-        correct = {"shape": "triangle", "rotation": 225}
+        A = {"shape": shape, "rotation": 0}
+        B = {"shape": shape, "rotation": 45}
+        C = {"shape": shape, "rotation": 180}
+        correct = {"shape": shape, "rotation": 225}
         distractors = [
-            {"shape": "triangle", "rotation": 180},
-            {"shape": "triangle", "rotation": 135},
-            {"shape": "triangle", "rotation": 270},
+            {"shape": shape, "rotation": 180},
+            {"shape": shape, "rotation": 135},
+            {"shape": shape, "rotation": 270},
         ]
 
     options = [correct] + distractors
+    validate_shape_usage([A, B, C])
+    validate_shape_usage(options)
     random.shuffle(options)
     correct_index = options.index(correct)
 
@@ -569,8 +611,9 @@ def generate_composition_question(difficulty="easy"):
     """
     Composition rule: UNION (overlay) of two inputs.
     """
-    A = {"shape": "triangle", "rotation": 0}
-    B = {"shape": "triangle", "rotation": 180}
+    shapes = choose_shape_pair(difficulty)
+    A = {"shape": shapes[0], "rotation": 0}
+    B = {"shape": shapes[-1], "rotation": 180}
 
     correct = {
         "type": "composite",
@@ -581,22 +624,26 @@ def generate_composition_question(difficulty="easy"):
         distractors = [
             {"type": "composite", "items": [A]},
             {"type": "composite", "items": [B]},
-            {"type": "composite", "items": [{"shape": "triangle", "rotation": 90}, B]},
+            {"type": "composite", "items": [{"shape": shapes[0], "rotation": 90}, B]},
         ]
     elif difficulty == "medium":
         distractors = [
             {"type": "composite", "items": [A]},
-            {"type": "composite", "items": [A, B, {"shape": "triangle", "rotation": 90}]},
-            {"type": "composite", "items": [{"shape": "triangle", "rotation": 0}, {"shape": "triangle", "rotation": 90}]},
+            {"type": "composite", "items": [{"shape": shapes[0], "rotation": 90}, B]},
+            {"type": "composite", "items": [{"shape": shapes[0], "rotation": 45}, B]},
         ]
     else:
         distractors = [
-            {"type": "composite", "items": [{"shape": "triangle", "rotation": 0}, {"shape": "triangle", "rotation": 135}]},
-            {"type": "composite", "items": [A, B, {"shape": "triangle", "rotation": 45}]},
-            {"type": "composite", "items": [{"shape": "triangle", "rotation": 45}, B]},
+            {"type": "composite", "items": [{"shape": shapes[0], "rotation": 0}, {"shape": shapes[-1], "rotation": 135}]},
+            {"type": "composite", "items": [A, {"shape": shapes[-1], "rotation": 45}]},
+            {"type": "composite", "items": [{"shape": shapes[0], "rotation": 45}, B]},
         ]
 
     options = [correct] + distractors
+    validate_shape_usage([A, B])
+    for option in options:
+        if option.get("type") == "composite":
+            validate_shape_usage(option.get("items", []))
     random.shuffle(options)
     correct_index = options.index(correct)
 

@@ -71,26 +71,46 @@ def _rotate_point(px: float, py: float, cx: float, cy: float, deg: float):
     return cx + rx, cy + ry
 
 
-def _triangle(cx: int, cy: int, size: int = 34, rot: int = 0,
-              fill: str = "none", stroke: str = "#e6edf3", stroke_w: int = 3, opacity: float = 1.0) -> str:
+def _triangle(x: int, y: int, size: int = 34, rotation: int = 0, opacity: float = 1.0) -> str:
+    half = size / 2
     pts = [
-        (cx, cy - size),
-        (cx - size, cy + size),
-        (cx + size, cy + size),
+        (x, y - half),
+        (x - half, y + half),
+        (x + half, y + half),
     ]
-    pts2 = [_rotate_point(x, y, cx, cy, rot) for x, y in pts]
-    pts_str = " ".join([f"{x:.1f},{y:.1f}" for x, y in pts2])
-    return f'<polygon points="{pts_str}" fill="{fill}" stroke="{stroke}" stroke-width="{stroke_w}" opacity="{opacity}" />'
+    pts2 = [_rotate_point(px, py, x, y, rotation) for px, py in pts]
+    pts_str = " ".join([f"{px:.1f},{py:.1f}" for px, py in pts2])
+    return (
+        f'<polygon points="{pts_str}" fill="none" stroke="black" '
+        f'stroke-width="2" opacity="{opacity}" />'
+    )
 
 
-def _circle(cx: int, cy: int, r: int = 20, fill: str = "none", stroke: str = "#e6edf3", stroke_w: int = 3) -> str:
-    return f'<circle cx="{cx}" cy="{cy}" r="{r}" fill="{fill}" stroke="{stroke}" stroke-width="{stroke_w}" />'
+def _square(x: int, y: int, size: int, rotation: int = 0, opacity: float = 1.0) -> str:
+    half = size / 2
+    return (
+        f'<rect x="{x-half}" y="{y-half}" width="{size}" height="{size}" '
+        f'transform="rotate({rotation},{x},{y})" '
+        f'fill="none" stroke="black" stroke-width="2" opacity="{opacity}" />'
+    )
 
 
-def _square(cx: int, cy: int, size: int = 36, fill: str = "none", stroke: str = "#e6edf3", stroke_w: int = 3) -> str:
-    x = cx - size // 2
-    y = cy - size // 2
-    return f'<rect x="{x}" y="{y}" width="{size}" height="{size}" rx="8" fill="{fill}" stroke="{stroke}" stroke-width="{stroke_w}" />'
+def _circle(x: int, y: int, size: int, opacity: float = 1.0) -> str:
+    r = size / 2
+    return (
+        f'<circle cx="{x}" cy="{y}" r="{r}" '
+        f'fill="none" stroke="black" stroke-width="2" opacity="{opacity}" />'
+    )
+
+
+def _draw_shape(shape, x, y, size, rotation=0, opacity=1.0):
+    if shape == "triangle":
+        return _triangle(x, y, size, rotation, opacity)
+    if shape == "square":
+        return _square(x, y, size, rotation, opacity)
+    if shape == "circle":
+        return _circle(x, y, size, opacity)
+    raise ValueError(f"Unsupported shape: {shape}")
 
 
 def _lines(lines: List, ox: int, oy: int, stroke: str = "#e6edf3", stroke_w: int = 3) -> str:
@@ -114,7 +134,7 @@ def _render_option_tiles_rotations(options: List[Dict[str, Any]], y: int, select
         inner = ""
         if show_labels:
             inner += _text(x + 16, y + 34, labels[i], size=18, color="#9aa4b2")
-        inner += _triangle(x + tile_w // 2, y + 92, size=32, rot=rot)
+        inner += _draw_shape(shape=options[i].get("shape", "triangle"), x=x + tile_w // 2, y=y + 92, size=28, rotation=rot, opacity=options[i].get("opacity", 1.0))
         out += _tile(x, y, tile_w, tile_h, inner, selected=(labels[i] == sel))
     return out
 
@@ -198,7 +218,7 @@ def _render_sequence(stem: Dict, options: List[Dict[str, Any]], selected: Option
     y = 140
     for i, item in enumerate(seq[:4]):
         x = start_x + i * gap
-        inner += _triangle(x, y, size=34, rot=item.get("rotation", 0))
+        inner += _draw_shape(shape=item.get("shape", "triangle"), x=x, y=y, size=28, rotation=item.get("rotation", 0), opacity=item.get("opacity", 1.0))
         if i < len(seq[:4]) - 1:
             inner += _arrow(x + 40, y, x + gap - 40)
 
@@ -234,7 +254,7 @@ def _render_odd_one_out(stem: Dict, options: List[Dict[str, Any]], selected: Opt
         inner_tile = ""
         if show_options:
             inner_tile += _text(x + 16, y + 34, labels[i], size=18, color="#9aa4b2")
-        inner_tile += _triangle(x + tile_w // 2, y + 92, size=32, rot=rot)
+        inner_tile += _draw_shape(shape=item.get("shape", "triangle"), x=x + tile_w // 2, y=y + 92, size=28, rotation=rot, opacity=item.get("opacity", 1.0))
         inner += _tile(x, y, tile_w, tile_h, inner_tile, selected=(selected_ref_index == i))
     return _svg_wrap(inner, 920, 420)
 
@@ -263,7 +283,7 @@ def _render_matrix(stem: Dict, options: List[Dict[str, Any]], selected: Optional
             if v is None:
                 inner += _text(x + cell / 2, y + cell / 2 + 8, "?", size=26, color="#9aa4b2", anchor="middle")
             else:
-                inner += _triangle(x + cell // 2, y + cell // 2, size=30, rot=int(v.get("rotation", 0)))
+                inner += _draw_shape(shape=v.get("shape", "triangle"), x=x + cell // 2, y=y + cell // 2, size=28, rotation=int(v.get("rotation", 0)), opacity=v.get("opacity", 1.0))
 
     if show_options and options:
         inner += _render_option_tiles_rotations(options, y=250, selected_label=selected)
@@ -301,12 +321,7 @@ def _render_matrix_stem(stem: dict) -> str:
                 )
             else:
                 svg.append(
-                    _triangle(
-                        cx=x,
-                        cy=y,
-                        size=28,
-                        rot=cell.get("rotation", 0),
-                    )
+                    _draw_shape(shape=cell.get("shape", "triangle"), x=x, y=y, size=28, rotation=cell.get("rotation", 0), opacity=cell.get("opacity", 1.0))
                 )
 
     svg.append("</svg>")
@@ -340,12 +355,7 @@ def _render_analogy_stem(stem: dict) -> str:
             )
         else:
             svg.append(
-                _triangle(
-                    cx=x,
-                    cy=y,
-                    size=30,
-                    rot=item.get("rotation", 0),
-                )
+                _draw_shape(shape=item.get("shape", "triangle"), x=x, y=y, size=28, rotation=item.get("rotation", 0), opacity=item.get("opacity", 1.0))
             )
 
         if i in (0, 2):
@@ -378,12 +388,7 @@ def _render_composition_stem(stem: dict) -> str:
 
     for (x, y), item in zip(positions, stem["inputs"]):
         svg.append(
-            _triangle(
-                cx=x,
-                cy=y,
-                size=28,
-                rot=item.get("rotation", 0),
-            )
+            _draw_shape(shape=item.get("shape", "triangle"), x=x, y=y, size=28, rotation=item.get("rotation", 0), opacity=item.get("opacity", 1.0))
         )
 
     svg.append(
@@ -404,9 +409,9 @@ def _render_structure_match(prompt: Dict, selected: Optional[str], show_options:
     inner += _text(24, 78, "Match the same connection structure.", size=16, color="#9aa4b2")
 
     # simple stem: circle -> square -> circle
-    inner += _circle(260, 170, r=18)
-    inner += _square(360, 170, size=38)
-    inner += _circle(460, 170, r=18)
+    inner += _draw_shape("circle", 260, 170, 36)
+    inner += _draw_shape("square", 360, 170, 38)
+    inner += _draw_shape("circle", 460, 170, 36)
     inner += '<line x1="278" y1="170" x2="340" y2="170" stroke="#e6edf3" stroke-width="3" stroke-linecap="round"/>'
     inner += '<line x1="380" y1="170" x2="442" y2="170" stroke="#e6edf3" stroke-width="3" stroke-linecap="round"/>'
 
@@ -428,12 +433,7 @@ def _render_hidden_shape(prompt: Dict, selected: Optional[str], show_options: bo
 
 def _render_sequence_option(option: Dict[str, Any]) -> str:
     return _svg_wrap(
-        _triangle(
-            cx=460,
-            cy=170,
-            size=34,
-            rot=int(option.get("rotation", 0)),
-        ),
+        _draw_shape(shape=option.get("shape", "triangle"), x=460, y=170, size=28, rotation=int(option.get("rotation", 0)), opacity=option.get("opacity", 1.0)),
         w=920,
         h=340,
     )
@@ -441,12 +441,7 @@ def _render_sequence_option(option: Dict[str, Any]) -> str:
 
 def _render_matrix_cell(option: Dict[str, Any]) -> str:
     inner = '<rect x="400" y="110" width="120" height="120" rx="14" fill="none" stroke="rgba(255,255,255,.16)" />'
-    inner += _triangle(
-        cx=460,
-        cy=170,
-        size=40,
-        rot=int(option.get("rotation", 0)),
-    )
+    inner += _draw_shape(shape=option.get("shape", "triangle"), x=460, y=170, size=28, rotation=int(option.get("rotation", 0)), opacity=option.get("opacity", 1.0))
     return _svg_wrap(inner, w=920, h=340)
 
 
@@ -461,13 +456,7 @@ def _render_composite_option(option: dict) -> str:
 
     for item in items:
         svg.append(
-            _triangle(
-                cx=60,
-                cy=60,
-                size=30,
-                rot=item.get("rotation", 0),
-                opacity=0.6,
-            )
+            _draw_shape(shape=item.get("shape", "triangle"), x=60, y=60, size=28, rotation=item.get("rotation", 0), opacity=0.6)
         )
 
     svg.append("</svg>")
@@ -476,12 +465,7 @@ def _render_composite_option(option: dict) -> str:
 
 def _render_odd_item(option: Dict[str, Any]) -> str:
     return _svg_wrap(
-        _triangle(
-            cx=460,
-            cy=170,
-            size=34,
-            rot=int(option.get("rotation", 0)),
-        ),
+        _draw_shape(shape=option.get("shape", "triangle"), x=460, y=170, size=28, rotation=int(option.get("rotation", 0)), opacity=option.get("opacity", 1.0)),
         w=920,
         h=340,
     )
