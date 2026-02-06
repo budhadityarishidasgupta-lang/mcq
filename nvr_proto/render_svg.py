@@ -7,6 +7,7 @@ STEM_RENDERERS = {
     "ODD_ONE_OUT",
     "MATRIX",
     "ANALOGY",
+    "COMPOSITION",
 }
 
 OPTION_RENDERERS = {
@@ -14,6 +15,7 @@ OPTION_RENDERERS = {
     "ODD_ONE_OUT",
     "MATRIX",
     "ANALOGY",
+    "COMPOSITION",
 }
 
 
@@ -70,7 +72,7 @@ def _rotate_point(px: float, py: float, cx: float, cy: float, deg: float):
 
 
 def _triangle(cx: int, cy: int, size: int = 34, rot: int = 0,
-              fill: str = "none", stroke: str = "#e6edf3", stroke_w: int = 3) -> str:
+              fill: str = "none", stroke: str = "#e6edf3", stroke_w: int = 3, opacity: float = 1.0) -> str:
     pts = [
         (cx, cy - size),
         (cx - size, cy + size),
@@ -78,7 +80,7 @@ def _triangle(cx: int, cy: int, size: int = 34, rot: int = 0,
     ]
     pts2 = [_rotate_point(x, y, cx, cy, rot) for x, y in pts]
     pts_str = " ".join([f"{x:.1f},{y:.1f}" for x, y in pts2])
-    return f'<polygon points="{pts_str}" fill="{fill}" stroke="{stroke}" stroke-width="{stroke_w}" />'
+    return f'<polygon points="{pts_str}" fill="{fill}" stroke="{stroke}" stroke-width="{stroke_w}" opacity="{opacity}" />'
 
 
 def _circle(cx: int, cy: int, r: int = 20, fill: str = "none", stroke: str = "#e6edf3", stroke_w: int = 3) -> str:
@@ -158,6 +160,9 @@ def render_question_svg(
 
     if family == "ANALOGY":
         return _render_analogy_stem(question["stem"])
+
+    if family == "COMPOSITION":
+        return _render_composition_stem(question["stem"])
 
     # fallback
     inner = _text(24, 44, f"{family or 'QUESTION'}", size=22)
@@ -351,6 +356,48 @@ def _render_analogy_stem(stem: dict) -> str:
     svg.append("</svg>")
     return "".join(svg)
 
+
+
+def _render_composition_stem(stem: dict) -> str:
+    """
+    Render composition stem: Input A + Input B → ?
+    """
+    cell = 80
+    gap = 40
+    width = 3 * cell + 2 * gap
+    height = cell + 40
+
+    svg = [
+        f'<svg width="{width}" height="{height}" viewBox="0 0 {width} {height}">'
+    ]
+
+    positions = [
+        (cell // 2, height // 2),
+        (cell + gap + cell // 2, height // 2),
+    ]
+
+    for (x, y), item in zip(positions, stem["inputs"]):
+        svg.append(
+            _triangle(
+                cx=x,
+                cy=y,
+                size=28,
+                rot=item.get("rotation", 0),
+            )
+        )
+
+    svg.append(
+        f'<text x="{positions[1][0] + cell//2}" y="{height//2 + 8}" '
+        f'font-size="28" fill="#888">+</text>'
+    )
+    svg.append(
+        f'<text x="{width - cell//2}" y="{height//2 + 8}" '
+        f'font-size="28" fill="#4DA3FF">?</text>'
+    )
+
+    svg.append("</svg>")
+    return "".join(svg)
+
 def _render_structure_match(prompt: Dict, selected: Optional[str], show_options: bool) -> str:
     # prompt is whatever generator gives; we just show a clear placeholder stem
     inner = _text(24, 44, "Structure match", size=22)
@@ -403,10 +450,28 @@ def _render_matrix_cell(option: Dict[str, Any]) -> str:
     return _svg_wrap(inner, w=920, h=340)
 
 
-def _render_composite_option(option: Dict[str, Any]) -> str:
-    lines = option.get("lines") or [((0, 0), (40, 0)), ((0, 0), (0, 40))]
-    inner = _tile(350, 60, 220, 220, _lines(lines, ox=420, oy=140), selected=False)
-    return _svg_wrap(inner, w=920, h=340)
+def _render_composite_option(option: dict) -> str:
+    """
+    Render a composite (overlay) option.
+    """
+    items = option.get("items", [])
+    svg = [
+        '<svg width="120" height="120" viewBox="0 0 120 120">'
+    ]
+
+    for item in items:
+        svg.append(
+            _triangle(
+                cx=60,
+                cy=60,
+                size=30,
+                rot=item.get("rotation", 0),
+                opacity=0.6,
+            )
+        )
+
+    svg.append("</svg>")
+    return "".join(svg)
 
 
 def _render_odd_item(option: Dict[str, Any]) -> str:
@@ -442,5 +507,8 @@ def render_option_svg(option: dict, pattern_family: str) -> str:
 
     if pattern_family == "ODD_ONE_OUT":
         return _render_odd_item(option)
+
+    if pattern_family == "COMPOSITION":
+        return _render_composite_option(option)
 
     raise ValueError(f"Unsupported pattern family: {pattern_family}")
