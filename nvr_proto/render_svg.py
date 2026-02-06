@@ -271,3 +271,69 @@ def _render_hidden_shape(prompt: Dict, selected: Optional[str], show_options: bo
     inner += _tile(80, 120, 180, 180, _lines(target, ox=120, oy=160), selected=False)
 
     return _svg_wrap(inner, 920, 380)
+
+
+def _render_sequence_option(option: Dict[str, Any]) -> str:
+    return _svg_wrap(
+        _triangle(
+            cx=460,
+            cy=170,
+            size=34,
+            rot=int(option.get("rotation", 0)),
+        ),
+        w=920,
+        h=340,
+    )
+
+
+def _render_matrix_cell(option: Dict[str, Any]) -> str:
+    inner = '<rect x="400" y="110" width="120" height="120" rx="14" fill="none" stroke="rgba(255,255,255,.16)" />'
+    inner += _triangle(
+        cx=460,
+        cy=170,
+        size=40,
+        rot=int(option.get("rotation", 0)),
+    )
+    return _svg_wrap(inner, w=920, h=340)
+
+
+def _render_composite_option(option: Dict[str, Any]) -> str:
+    lines = option.get("lines") or [((0, 0), (40, 0)), ((0, 0), (0, 40))]
+    inner = _tile(350, 60, 220, 220, _lines(lines, ox=420, oy=140), selected=False)
+    return _svg_wrap(inner, w=920, h=340)
+
+
+def _render_odd_item(option: Dict[str, Any]) -> str:
+    return _svg_wrap(
+        _triangle(
+            cx=460,
+            cy=170,
+            size=34,
+            rot=int(option.get("rotation", 0)),
+        ),
+        w=920,
+        h=340,
+    )
+
+
+def render_option_svg(option: dict, pattern_family: str) -> str:
+    """
+    Render a single option visual in isolation.
+    This is used by the student UI for the visual option grid.
+    """
+    if pattern_family == "SEQUENCE":
+        return _render_sequence_option(option)
+
+    if pattern_family == "MATRIX":
+        return _render_matrix_cell(option)
+
+    if pattern_family == "ANALOGY":
+        return _render_sequence_option(option)
+
+    if pattern_family == "COMPOSITION":
+        return _render_composite_option(option)
+
+    if pattern_family == "ODD_ONE_OUT":
+        return _render_odd_item(option)
+
+    raise ValueError(f"Unsupported pattern family: {pattern_family}")

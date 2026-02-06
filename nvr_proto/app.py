@@ -4,7 +4,7 @@ import streamlit.components.v1 as components
 
 from nvr_proto.db import init_nvr_tables
 from nvr_proto.generator import generate_question
-from nvr_proto.render_svg import render_question_svg
+from nvr_proto.render_svg import render_question_svg, render_option_svg
 
 
 # -----------------------------
@@ -61,27 +61,6 @@ def extract_explanation(q: dict) -> str:
 
 def new_question() -> dict:
     return normalize_question(generate_question())
-
-
-def render_single_option_svg(question: dict, option: dict) -> str:
-    """
-    Render a single option visual using the existing render_question_svg()
-    contract (no renderer API changes). We wrap the option in a minimal
-    question envelope with one option.
-    """
-    q = {
-        "pattern_family": question["pattern_family"],
-        "stem": question.get("stem"),
-        "options": [option],
-        "correct_index": 0,
-        "difficulty": question.get("difficulty", "easy"),
-        "explanation": "",
-    }
-    return render_question_svg(
-        q,
-        selected_option=None,
-        show_options=True,
-    )
 
 
 def normalize_question(q: dict) -> dict:
@@ -248,7 +227,10 @@ with actions_zone:
         with cols[i % 2]:
             is_selected = (st.session_state.selected == i)
 
-            option_svg = render_single_option_svg(question, opt)
+            option_svg = render_option_svg(
+                opt,
+                question["pattern_family"]
+            )
 
             border = "3px solid #22c55e" if is_selected else "2px solid #e5e7eb"
 
