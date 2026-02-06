@@ -1,8 +1,15 @@
 # nvr_proto/app.py
+import time
+import uuid
+
 import streamlit as st
 import streamlit.components.v1 as components
 
-from nvr_proto.db import init_nvr_tables
+from nvr_proto.repository.nvr_repo import (
+    get_session_summary,
+    init_nvr_tables,
+    record_attempt,
+)
 from nvr_proto.generator import generate_question
 from nvr_proto.render_svg import render_question_svg, render_option_svg
 
@@ -50,6 +57,7 @@ st.markdown(
 email = st.sidebar.text_input("Email")
 if not email:
     st.stop()
+
 
 # -----------------------------
 # Helpers
@@ -172,6 +180,22 @@ if "selected" not in st.session_state:
 if "submitted" not in st.session_state:
     st.session_state.submitted = False
 
+if "session_id" not in st.session_state:
+    st.session_state.session_id = str(uuid.uuid4())
+
+if "question_started_at" not in st.session_state:
+    st.session_state.question_started_at = time.time()
+
+with st.sidebar:
+    st.markdown("### Session Summary")
+    summary = get_session_summary(session_id=st.session_state.session_id)
+    st.write(f"Attempts: {summary['attempts']}")
+    st.write(f"Correct: {summary['correct']}")
+    if summary["attempts"] > 0:
+        acc = round((summary["correct"] / summary["attempts"]) * 100, 1)
+        st.write(f"Accuracy: {acc}%")
+    st.write(f"Avg time: {summary['avg_response_ms']} ms")
+
 question = st.session_state.question
 
 # -----------------------------
@@ -280,6 +304,26 @@ if st.button(
 ):
     st.session_state.submitted = True
 
+    selected = st.session_state.selected
+    correct_index = int(question["correct_index"])
+    is_correct = (selected == correct_index)
+
+    response_ms = int((time.time() - st.session_state.question_started_at) * 1000)
+
+    # user_id is optional for now (no auth in NVR prototype)
+    user_id = None
+
+    record_attempt(
+        session_id=st.session_state.session_id,
+        user_id=user_id,
+        pattern_family=question["pattern_family"],
+        difficulty=question.get("difficulty", "easy"),
+        selected_index=int(selected),
+        correct_index=correct_index,
+        is_correct=bool(is_correct),
+        response_ms=max(0, response_ms),
+    )
+
 if st.session_state.selected is None:
     st.caption("Select one option to continue.")
 
@@ -298,6 +342,7 @@ if st.session_state.submitted:
 
     if st.button("Next Question", use_container_width=True):
         st.session_state.question = new_question()
+        st.session_state.question_started_at = time.time()
         st.session_state.selected = None
         st.session_state.submitted = False
         st.rerun()
