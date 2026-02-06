@@ -137,7 +137,7 @@ def render_question_svg(
         return _render_odd_one_out(stem, options, selected_option, show_options)
 
     if family == "MATRIX":
-        return _render_matrix(stem, options, selected_option, show_options)
+        return _render_matrix_stem(question["stem"])
 
     # fallback
     inner = _text(24, 44, f"{family or 'QUESTION'}", size=22)
@@ -243,6 +243,49 @@ def _render_matrix(stem: Dict, options: List[Dict[str, Any]], selected: Optional
     if show_options and options:
         inner += _render_option_tiles_rotations(options, y=250, selected_label=selected)
     return _svg_wrap(inner, 920, 440)
+
+
+def _render_matrix_stem(stem: dict) -> str:
+    """
+    Render a MATRIX stem grid with one missing cell.
+    """
+    cells = stem["cells"]
+    rows = len(cells)
+    cols = len(cells[0])
+
+    cell_size = 80
+    padding = 20
+    width = cols * cell_size + padding * 2
+    height = rows * cell_size + padding * 2
+
+    svg = [
+        f'<svg width="{width}" height="{height}" viewBox="0 0 {width} {height}">'
+    ]
+
+    for r in range(rows):
+        for c in range(cols):
+            x = padding + c * cell_size + cell_size // 2
+            y = padding + r * cell_size + cell_size // 2
+
+            cell = cells[r][c]
+            if cell is None:
+                # missing cell indicator
+                svg.append(
+                    f'<rect x="{x-30}" y="{y-30}" width="60" height="60" '
+                    f'rx="8" ry="8" stroke="#4DA3FF" stroke-width="2" fill="none"/>'
+                )
+            else:
+                svg.append(
+                    _triangle(
+                        cx=x,
+                        cy=y,
+                        size=28,
+                        rot=cell.get("rotation", 0),
+                    )
+                )
+
+    svg.append("</svg>")
+    return "".join(svg)
 
 
 def _render_structure_match(prompt: Dict, selected: Optional[str], show_options: bool) -> str:
